@@ -21,7 +21,10 @@ These edge cases describe the expected behavior at the package boundaries. Keep 
 | CLI color mode | Misspelled color flag | `-color=red` and `--colour=red` return the exact color usage message | `internal/cli/cli_test.go` |
 | CLI color mode | Missing string after color flag | `--color=red` returns the exact color usage message | `internal/cli/cli_test.go` |
 | CLI color mode | Multiple color flags | A command containing two `--color=<color>` flags is invalid | `internal/cli/cli_test.go` |
-| CLI color mode | Color flag in wrong position | `"hello" --color=red` returns the exact color usage message | `internal/cli/cli_test.go` |
+| CLI color mode | Order-flexible whole-string color | `"hello" --color=red` returns text `hello`, color `red`, and an empty substring | `internal/cli/cli_test.go` |
+| CLI output mode | Order-flexible output flag | `"hello" --output=out.txt` returns text `hello` and output file `out.txt` | `internal/cli/cli_test.go` |
+| CLI alignment mode | Valid alignment values | Planned: `--align=left`, `--align=center`, `--align=right`, and `--align=justify` return the selected alignment | `internal/cli/cli_test.go` |
+| CLI alignment mode | Invalid alignment formats | Planned: separated, empty, misspelled, unsupported, and duplicate alignment flags return the exact alignment usage message | `internal/cli/cli_test.go` |
 | CLI color mode | Shell-split RGB/HSL | Split color values such as `--color=rgb,255, 0, 0` are invalid argument formats | `internal/cli/cli_test.go` |
 | CLI interactive mode | Windows-style user input | `\r\n` input is trimmed correctly at prompts | `internal/cli/interactive_test.go` |
 | Renderer normalization | Leading escaped newline | `\nHello` becomes `["", "Hello"]` | `internal/renderer/normalize_test.go` |
@@ -51,6 +54,8 @@ These edge cases describe the expected behavior at the package boundaries. Keep 
 | Renderer build color | Invalid color | An invalid name, hex code, RGB value, or HSL value returns an error before producing output | `internal/renderer/build_test.go` |
 | Renderer build color | Spaces preserved | Coloring part of a string must not remove or trim spaces from rendered output | `internal/renderer/build_test.go` |
 | Output printer | Exact stdout format | Each provided output row is printed with one newline, and an empty slice prints nothing | `internal/output/print_test.go` |
+| Output alignment | ANSI-aware visible width | Planned: ANSI escape sequences do not count as visible width when padding aligned output | `internal/output/*_test.go` |
+| Output alignment | Justify uses structured segments | Planned: justify expands only spaces between rendered word segments, not spaces inside ASCII-art letters | `internal/output/*_test.go` |
 
 ---
 
@@ -107,6 +112,32 @@ Golden assertions for colored rendering:
 - Substring matching does not cross escaped newline boundaries after normalization.
 - A missing substring renders valid uncolored ASCII art.
 - Multiple color flags in one command are not supported.
+
+## Alignment Golden Rules
+
+Alignment output will use structured renderer data.
+
+Expected alignment values:
+
+```text
+left
+center
+right
+justify
+```
+
+Golden assertions for aligned rendering:
+
+- Left alignment is byte-for-byte equivalent to the flattened structured output.
+- Center alignment adds left padding based on visible row width.
+- Right alignment adds left padding based on visible row width.
+- Rows wider than the configured width are printed unchanged.
+- ANSI color sequences do not count toward visible width.
+- Justify expands only spaces between word segments.
+- Justify does not expand spaces inside ASCII-art letters.
+- Justify leaves one-word lines left-aligned.
+- Leading and trailing spaces are preserved.
+- File output and terminal output use the same aligned rows.
 
 ## Audit Golden Outputs
 

@@ -14,7 +14,7 @@ func main() {
 	interactive := len(os.Args) == 1
 
 	for {
-		text, bannerPath, color, substring, exit, err := cli.PickMode(os.Args)
+		opts, exit, err := cli.PickModeOptions(os.Args)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -23,14 +23,14 @@ func main() {
 			return
 		}
 
-		bannerMap, err := banner.LoadBanner(bannerPath)
+		bannerMap, err := banner.LoadBanner(opts.BannerPath)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 
-		lines := renderer.NormalizeInput(text)
-		ascii, err := renderer.BuildASCII(lines, bannerMap, substring, color)
+		lines := renderer.NormalizeInput(opts.Text)
+		ascii, err := renderer.BuildASCII(lines, bannerMap, opts.Substring, opts.Color)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			if interactive {
@@ -39,7 +39,11 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = output.PrintASCII(ascii)
+		if opts.OutputFile != "" {
+			err = output.WriteASCIIFile(opts.OutputFile, ascii)
+		} else {
+			err = output.PrintASCII(ascii)
+		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)

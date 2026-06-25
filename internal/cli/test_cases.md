@@ -44,6 +44,11 @@
 | `["ascii-art", "--color=blue", "B", "RGB()"]` | standard path, color=`blue`, substring=`B` |
 | `["ascii-art", "hello", "shadow", "--color=cyan"]` | shadow path, color=`cyan`, whole string |
 | `["ascii-art", "hello world", "thinkertoy", "--color=green", "world"]` | thinkertoy path, color=`green`, substring=`world` |
+| `["ascii-art", "hello", "--color=red"]` | standard path, color=`red`, whole string |
+| `["ascii-art", "hello", "--color=red", "shadow"]` | shadow path, color=`red`, whole string |
+| `["ascii-art", "--output=banner.txt", "hello"]` | standard path, output file=`banner.txt` |
+| `["ascii-art", "hello", "--output=banner.txt"]` | standard path, output file=`banner.txt` |
+| `["ascii-art", "hello world", "shadow", "--output=banner.txt", "--color=cyan", "world"]` | shadow path, color=`cyan`, substring=`world`, output file=`banner.txt` |
 | `["ascii-art", ""]`                    | empty text error            |
 | `["ascii-art", "hello", "unknown"]`    | invalid banner error        |
 | `["ascii-art", "hello", "1"]`          | invalid banner error        |
@@ -56,10 +61,26 @@
 | `["ascii-art", "--color=red"]` | color usage error |
 | `["ascii-art", "--color=red", "--color=blue", "hello"]` | color usage error |
 | `["ascii-art", "hello", "standard", "--color=red", "--color=blue"]` | color usage error |
-| `["ascii-art", "hello", "--color=red"]` | color usage error |
 | `["ascii-art", "hello", "unknown", "--color=red"]` | invalid banner error |
 | `["ascii-art", "--color=rgb,255,", "0,", "0", "hello"]` | color usage error |
 | `["ascii-art", "--color=hsl,0,", "100%,", "50%", "hello"]` | color usage error |
+
+## Planned Alignment Argument Cases
+
+| Args | Expected |
+| --- | --- |
+| `["ascii-art", "--align=left", "hello"]` | align=`left` |
+| `["ascii-art", "--align=center", "hello"]` | align=`center` |
+| `["ascii-art", "hello", "--align=right"]` | align=`right` |
+| `["ascii-art", "hello world", "shadow", "--align=justify"]` | shadow path, align=`justify` |
+| `["ascii-art", "--output=banner.txt", "--align=center", "hello"]` | output file=`banner.txt`, align=`center` |
+| `["ascii-art", "--color=cyan", "world", "hello world", "--align=center"]` | color=`cyan`, substring=`world`, align=`center` |
+| `["ascii-art", "--align", "center", "hello"]` | alignment usage error |
+| `["ascii-art", "--align=", "hello"]` | alignment usage error |
+| `["ascii-art", "-align=center", "hello"]` | alignment usage error |
+| `["ascii-art", "--alignment=center", "hello"]` | alignment usage error |
+| `["ascii-art", "--align=middle", "hello"]` | alignment usage error |
+| `["ascii-art", "--align=left", "--align=right", "hello"]` | alignment usage error |
 
 ## Mode Picker
 
@@ -71,4 +92,4 @@
 
 ## Loop Ownership
 
-`RunInteractive` returns one valid text/banner pair and empty color settings. The repeat loop lives in `main.go`, which calls `PickMode(os.Args)` again after printing when the program is in interactive mode.
+`RunInteractiveOptions` returns one valid options value. The repeat loop lives in `main.go`, which calls `PickModeOptions(os.Args)` again after printing or writing output when the program is in interactive mode.

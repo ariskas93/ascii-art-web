@@ -1,66 +1,192 @@
-# PRD - ASCII-ART
+# PRD - ASCII-ART Alignment
 
 ---
 
 ## 1. Problem Statement
 
-ASCII-ART is a Go CLI program that renders text as multi-line ASCII art using one of three provided banner files.
+ASCII-ART is a Go CLI program that renders text as multi-line ASCII art using one of three banner files.
 
-The required audit behavior is argument mode:
+The project already supports:
 
-- Argument mode: `go run . [STRING] [BANNER]`
+- argument mode
+- interactive mode
+- banner selection
+- color rendering
+- output file writing
 
-The program may also support an additional interactive mode:
+This project iteration adds the alignment optional objective:
 
-- Interactive mode: `go run .`
+```bash
+go run . --align=<left|center|right|justify> [STRING] [BANNER]
+```
 
-The official ASCII-ART audit requirement is:
+The program must preserve compatibility with the original audit behavior:
 
 ```bash
 go run . [STRING] [BANNER]
 ```
 
-The ASCII Art Color audit requirement is:
+and the color behavior:
 
 ```bash
 go run . --color=<color> [substring] [STRING]
 ```
 
-The second argument represents the banner/template name.
-
-The program must still support execution with a single `[STRING]` argument, which defaults to the standard banner.
-
-Interactive mode remains an additional feature layered on top of the mandatory audit specification. It must not change or weaken the required argument-mode behavior.
-
-The input text is mandatory in argument mode and collected by prompt in interactive mode. The banner is optional in argument mode and defaults to `standard`. In interactive mode the user selects a banner from a numbered menu, then may choose an optional color and optional substring to color.
-
-Supported input:
-- Letters (a-z, A-Z)
-- Numbers (0-9)
-- Spaces
-- Special characters (based on banner support)
-- Newline sequences (\n)
-Constraints:
-- Each character is represented by 8 lines
-- Banner files follow a fixed format (no modification required)
-- Banner files may use LF or CRLF line endings
-
 Allowed packages:
+
 - Only standard Go packages are allowed.
 
 ---
 
-## 2. CLI Contract
+## 2. Supported Features
 
-The official audit behavior is argument mode:
+The program supports:
+
+- `standard`, `shadow`, and `thinkertoy` banners
+- single-string rendering with default `standard` banner
+- escaped newline sequences written as `\n`
+- printable ASCII characters supported by the banner files
+- foreground color with named colors, `#RRGGBB`, RGB, and HSL notation
+- optional file output with `--output=<file>`
+- optional alignment with `--align=<left|center|right|justify>`
+
+The program must not support external dependencies or custom user-supplied banner paths.
+
+---
+
+## 3. CLI Contract
+
+### Argument Mode
+
+Valid base forms:
 
 ```bash
-go run . [STRING] [BANNER]
+go run . "Hello"
+go run . "Hello" standard
+go run . "Hello" shadow
+go run . "Hello\nThere" thinkertoy.txt
 ```
 
-Interactive mode is an extended feature added on top of the mandatory specification.
+Valid option examples:
 
-### Interactive mode
+```bash
+go run . --color=red "Hello"
+go run . --color=red ll "Hello"
+go run . --output=out.txt "Hello"
+go run . --align=center "Hello"
+go run . "Hello" shadow --align=right
+go run . --output=out.txt --align=justify "Hello world"
+go run . "Hello world" shadow --color=cyan world --align=center
+```
+
+Options may appear before, between, or after positional arguments, as long as they use `--flag=value` form.
+
+Supported option flags:
+
+```text
+--color=<color>
+--output=<file>
+--align=<left|center|right|justify>
+```
+
+Invalid option forms:
+
+```bash
+go run . --color red "hello"
+go run . --output out.txt "hello"
+go run . --align center "hello"
+go run . --align= "hello"
+go run . -align=center "hello"
+go run . --alignment=center "hello"
+```
+
+### Positional Arguments
+
+After removing supported flags:
+
+```text
+[STRING]
+[STRING] [BANNER]
+```
+
+are valid base forms.
+
+Accepted banner values:
+
+```text
+standard
+standard.txt
+shadow
+shadow.txt
+thinkertoy
+thinkertoy.txt
+```
+
+If only one positional argument exists, it is always text, even when it equals a banner name.
+
+Example:
+
+```bash
+go run . "shadow"
+```
+
+renders the word `shadow`.
+
+To use a banner, provide it as the second positional argument:
+
+```bash
+go run . "shadow" standard
+```
+
+### Color Substring Rule
+
+The project does not add a `--substring` flag.
+
+Substring coloring stays compatible with the exercise:
+
+```bash
+go run . --color=red kit "a king kitten"
+```
+
+A color substring is positional and is recognized only when it appears immediately after the `--color=<color>` flag.
+
+### Usage Messages
+
+General invalid argument format:
+
+```text
+Usage: go run . [STRING] [BANNER]
+
+EX: go run . something standard
+```
+
+Invalid color option format:
+
+```text
+Usage: go run . [OPTION] [STRING]
+
+EX: go run . --color=<color> <substring to be colored> "something"
+```
+
+Invalid output option format:
+
+```text
+Usage: go run . [OPTION] [STRING] [BANNER]
+
+EX: go run . --output=<fileName.txt> something standard
+```
+
+Invalid alignment option format:
+
+```text
+Usage: go run . [OPTION] [STRING] [BANNER]
+
+EX: go run . --align=<left|center|right|justify> something standard
+```
+
+---
+
+## 4. Interactive Mode
 
 Run:
 
@@ -68,240 +194,130 @@ Run:
 go run .
 ```
 
-The program operates in an interactive loop:
+The program loops until `/exit`.
 
-- The program starts and prompts the user to input a string or type /exit to terminate.
-- Empty text is rejected with `No valid string input`.
-- Whitespace-only text is accepted because spaces are renderable characters.
-- After a valid string is entered, the user is prompted to select one of three banner files using numeric input:
-  - `1` -> `banners/standard.txt`
-  - `2` -> `banners/shadow.txt`
-  - `3` -> `banners/thinkertoy.txt`
-- Invalid banner choices are rejected with `Invalid banner choice` and the banner prompt repeats.
-- After a valid banner is selected, the user is prompted to enter a color or press Enter for no color.
-- The color prompt displays examples for preset, hexadecimal, RGB, and HSL color formats.
+Interactive mode collects:
 
-```text
-Enter color, or press Enter for no color (/exit to quit)
-Examples: red, #ff0000, rgb,255,0,0, hsl,0,100%,50%
-Color:
-```
+1. Text
+2. Banner selection
+3. Optional color
+4. Optional substring when color is provided
+5. Optional output file
+6. Optional alignment
 
-- If the color prompt is empty, rendering continues without color.
-- If a color is entered, the user is prompted to enter a substring or press Enter to color the whole string.
-- The color prompt trims surrounding whitespace from the color value.
-- The substring prompt preserves spaces inside the substring and only removes the line ending.
-- Invalid color values are reported as rendering errors, and interactive mode returns to the string input prompt instead of terminating.
-- The program generates and prints the corresponding ASCII-art output.
-- After printing, the program returns to the string input prompt.
-- This cycle repeats continuously until the user types /exit at any prompt, which terminates the program.
+Interactive defaults:
 
-The repeat loop lives in `main.go`. The CLI package collects one valid text, banner, color, and substring selection per call.
+- empty color means no color
+- empty substring after a color means color the whole string
+- empty output choice means print to terminal
+- empty alignment means left alignment
 
-### Argument mode
-
-Run:
-
-```bash
-go run . "Hello"
-go run . "Hello" standard
-go run . "Hello" shadow
-go run . "Hello\nThere" thinkertoy.txt
-go run . --color=red "Hello"
-go run . --color=red ll "Hello"
-go run . --color=#ff0000 "Hello"
-go run . --color=RGB,255,0,0 "Hello"
-go run . --color=hsl,0,100%,50% "Hello"
-go run . "Hello" shadow --color=cyan
-```
-
-Official format:
-
-```bash
-go run . [STRING] [BANNER]
-```
-
-The banner argument is optional.
-
-If omitted, the program defaults to:
-
-```text
-banners/standard.txt
-```
-
-Argument rules:
-
-- `args[1]` is the text to render.
-- `args[2]` is optional and represents the banner/template name.
-- If no banner is provided, the program uses `banners/standard.txt`.
-- Accepted banner values are `standard`, `standard.txt`, `shadow`, `shadow.txt`, `thinkertoy`, and `thinkertoy.txt`.
-- Numeric banner choices such as `1`, `2`, or `3` are only valid in interactive mode.
-- The program must still work correctly with only one string argument.
-- Argument mode renders once and exits.
-
-Valid argument formats are:
-
-```bash
-go run . [STRING]
-go run . [STRING] [BANNER]
-go run . --color=<color> [STRING]
-go run . --color=<color> [SUBSTRING] [STRING]
-go run . [STRING] [BANNER] --color=<color>
-go run . [STRING] [BANNER] --color=<color> [SUBSTRING]
-```
-
-Any invalid argument format must print:
-
-```text
-Usage: go run . [STRING] [BANNER]
-
-EX: go run . something standard
-```
-
-Invalid cases include:
-
-- Too many arguments
-- Missing string argument
-- Unsupported banner name
-- Numeric banner choices in argument mode, such as `1`, `2`, or `3`
-- Any argument format outside the valid formats listed above
-
-Unsupported banner names, including values such as `other`, `abc`, or numeric choices in argument mode, must print the official usage message.
-
-If other optional ASCII-art projects are later implemented, the CLI may additionally support valid `[OPTION]` arguments while preserving backward compatibility with:
-
-```bash
-go run . [STRING] [BANNER]
-```
-
-Color option rules:
-
-- The color flag must be formatted exactly as `--color=<color>`.
-- Invalid color flag formats must print:
-
-```text
-Usage: go run . [OPTION] [STRING]
-
-EX: go run . --color=<color> <substring to be colored> "something"
-```
-
-- If no substring is provided, the whole input string is colored.
-- If a substring is provided, every matching occurrence is colored.
-- Substring matching is case-sensitive and is applied per normalized line.
-- Color matching must not cross newline boundaries.
-- Color mode defaults to `banners/standard.txt` unless a valid banner is provided by the extended `[STRING] [BANNER] --color=<color>` form.
-- Supported named colors include `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, and `orange`.
-- Hexadecimal color notation must use the full `#RRGGBB` form, for example `#ff0000` or `#FF0000`.
-- RGB color notation must use the comma-only form `rgb,<red>,<green>,<blue>`, for example `rgb,255,0,0`.
-- HSL color notation must use the comma-only form `hsl,<hue>,<saturation>%,<lightness>%`, for example `hsl,0,100%,50%`.
-- RGB and HSL notation names are case-insensitive, so `RGB,255,0,0` and `HSL,0,100%,50%` are valid.
-- RGB values must be integer values from `0` to `255`.
-- HSL hue must be an integer from `0` to `360`; hue values greater than `360` are invalid.
-- HSL saturation and lightness must be integer percentages from `0%` to `100%`.
-- CSS-style function syntax such as `rgb(255, 0, 0)` or `hsl(0, 100%, 50%)` is not supported.
-- Invalid hexadecimal color codes must print `Invalid hexadecimal color code`.
-- Invalid RGB color codes must print `Invalid RGB color code`.
-- Invalid HSL color codes must print `Invalid HSL color code`.
-- Invalid color names must print `Invalid color name`.
+Invalid interactive choices should repeat the relevant prompt instead of crashing.
 
 ---
 
-## 3. ASCII-ART Functions
+## 5. Shared Options
 
-The program uses a mapping-based approach to handle banner files.
-Each selected banner is loaded for the current render cycle and converted into a lookup structure that allows fast and simple access to the ASCII-art representation of each character.
-
-### 3.1 Banner Mapping
-
-Each banner file contains all printable ASCII characters (from ASCII 32 `' '` to ASCII 126 `'~'`).
-
-Each character:
-- Has a height of **8 lines**
-- Is separated by **one empty line**
-- Occupies **9 lines total**
-
-The program parses the banner file and builds a map:
+The CLI returns one options value:
 
 ```go
-map[rune][]string
-```
-
-This map associates each character with its corresponding 8-line ASCII-art representation.
-
-**Example:**
-
-```go
-banner['A'] = []string{
-    "line1",
-    "line2",
-    "line3",
-    "line4",
-    "line5",
-    "line6",
-    "line7",
-    "line8",
+type Options struct {
+	Text       string
+	BannerPath string
+	Color      string
+	Substring  string
+	OutputFile string
+	Align      string
 }
 ```
 
-This allows constant-time access to any character's ASCII-art block during rendering.
+Meanings:
 
-### 3.2 LoadBanner
+- `BannerPath` defaults to `banners/standard.txt`
+- `Color == ""` means no color
+- `Substring == ""` with a color means color the whole string
+- `OutputFile == ""` means print to terminal
+- `Align == ""` or `Align == "left"` means left alignment
+
+---
+
+## 6. Rendering Contract
+
+### Banner Loading
 
 ```go
 LoadBanner(path string) (map[rune][]string, error)
 ```
 
-**Responsibility:**
-- Read the selected banner file from disk
-- Normalize CRLF line endings to LF
-- Split its contents into lines
-- Parse and map each ASCII character to its 8-line representation
-- Return an error if the file cannot be read or is malformed
+Responsibilities:
 
-### 3.3 NormalizeInput
+- read the selected banner file
+- normalize CRLF line endings
+- map printable ASCII characters from 32 to 126
+- return an error for missing or malformed files
+
+### Input Normalization
 
 ```go
 NormalizeInput(input string) []string
 ```
 
-**Responsibility:**
-- Process the input string
-- Split it into multiple lines using escaped `\n` sequences
-- Return a slice of strings, where each element represents one line to render
-
-**Example:**
+Examples:
 
 ```text
 "Hello\nThere" -> ["Hello", "There"]
+"Hello\n\nThere" -> ["Hello", "", "There"]
+"\nHello" -> ["", "Hello"]
 ```
 
-### 3.4 BuildASCII
+### Structured ASCII Rendering
+
+The old flat renderer returned:
 
 ```go
-BuildASCII(lines []string, banner map[rune][]string, substring string, color string) ([]string, error)
+[]string
 ```
 
-**Responsibility:**
-- Convert normalized input into ASCII-art output
-- Render normally when `color == ""`
-- Color the whole string when `color != ""` and `substring == ""`
-- Color every matching substring occurrence when both `color` and `substring` are provided
+The alignment version replaces that with structured rendering:
 
-**Process:**
-- For each input line:
-  - Detect the input character positions that should be colored
-  - Create 8 output rows
-  - For each character in the line:
-    - Retrieve its ASCII-art block from the banner map
-    - Wrap the character block rows with ANSI color codes when its input position is colored
-    - Append each of the 8 rows horizontally
-- Combine all processed lines into a final output slice
+```go
+type SegmentKind int
 
-**Error handling:**
-- If a character is not found in the banner map, return an error
-- If a color name, hexadecimal code, RGB code, or HSL code is invalid, return an error
+const (
+	SegmentWord SegmentKind = iota
+	SegmentSpace
+)
 
-### 3.5 Color Helpers
+type RenderedSegment struct {
+	Kind SegmentKind
+	Text string
+	Rows []string
+}
+
+type RenderedLine struct {
+	Segments []RenderedSegment
+}
+
+type RenderedASCII []RenderedLine
+```
+
+Preferred final renderer API:
+
+```go
+BuildASCII(lines []string, banner map[rune][]string, substring string, color string) (RenderedASCII, error)
+```
+
+Renderer responsibilities:
+
+- split normalized lines into word and space-run segments
+- render each segment using the banner map
+- preserve leading, trailing, and repeated spaces
+- preserve color support
+- preserve newline behavior
+- return errors for unsupported characters
+- remain independent from output alignment and terminal width
+
+### Color Helpers
 
 ```go
 getANSIColor(color string) (string, error)
@@ -309,585 +325,168 @@ colorize(text string, colorCode string) string
 coloredPositions(s string, substring string) map[int]bool
 ```
 
-**Responsibility:**
-- Convert supported color names, full `#RRGGBB` values, RGB values, and HSL values to ANSI escape codes
-- Wrap colored ASCII-art segments with ANSI color and reset codes
-- Find every input character position that belongs to a matching substring
-- Return all positions when `substring == ""`
-
-### 3.6 PrintASCII
-
-```go
-PrintASCII(output []string)
-```
-
-**Responsibility:**
-- Print the ASCII-art output line by line to standard output
-- Ensure correct formatting (each row printed on a new line)
-- Do not print any extra text
-
-### 3.7 Processing Flow
-
-```text
-cli.PickMode
--> LoadBanner
--> NormalizeInput
--> Detect colored positions
--> BuildASCII
--> PrintASCII
-```
-
-### 3.8 Design Rationale
-
-- The selected banner is parsed once per render cycle
-- The `map[rune][]string` structure provides fast lookup and clean rendering logic
-- Responsibilities are clearly separated, making the code easier to test and maintain
-- The rendering process is independent from file parsing and CLI parsing, reducing coupling between components
-- Color is applied during rendering based on original input character positions, not by searching the rendered ASCII-art output
-- `main.go` stays minimal and only coordinates package calls
-
-### 3.9 Edge Cases
-
-- Empty input → handled at CLI level
-- Whitespace-only input → accepted because spaces are renderable
-- Single `\n` → returns [""] (one empty line)
-- Trailing `\n` → last empty element is removed
-- Multiple `\n` → produce empty lines minus trailing one
-- CRLF banner files → normalized by the banner loader
-- Unsupported characters → return an error
-- Invalid banner file → return an error during loading
-- Missing substring in color mode → render uncolored ASCII-art output
-- Empty substring in color mode → color the whole string
-
-### 3.10 Banner Template Support
-
-The renderer supports three official banner templates:
-
-- `standard`
-- `shadow`
-- `thinkertoy`
-
-Each template represents a different ASCII-art style while preserving the same printable ASCII mapping structure.
-
-The selected banner name is resolved to its corresponding banner file path before loading.
-
-The banner argument acts as a rendering template selector.
-
-Example:
-
-```text
-standard    -> banners/standard.txt
-shadow      -> banners/shadow.txt
-thinkertoy  -> banners/thinkertoy.txt
-```
-
-The rendering pipeline remains independent from the selected template because all banners are converted into the same internal structure:
-
-```go
-map[rune][]string
-```
-
-This allows the renderer to operate identically regardless of banner style.
+Color matching is applied per normalized line and must not cross newline boundaries.
 
 ---
 
-## 4. Project file structure
+## 7. Output and Alignment Contract
+
+The output package owns printing, file writing, terminal width detection, and alignment.
+
+Alignment modes:
 
 ```text
-ascii-art/
-|-- main.go
-|-- banners/
-|   |-- standard.txt
-|   |-- shadow.txt
-|   `-- thinkertoy.txt
-|-- internal/
-|   |-- cli/
-|   |   |-- args.go
-|   |   |-- mode_picker.go
-|   |   |-- interactive.go
-|   |   |-- cli_test.go
-|   |   |-- interactive_test.go
-|   |   `-- test_cases.md
-|   |-- banner/
-|   |   |-- loader.go
-|   |   `-- loader_test.go
-|   |-- renderer/
-|   |   |-- build.go
-|   |   |-- color.go
-|   |   |-- normalize.go
-|   |   |-- substring.go
-|   |   |-- build_test.go
-|   |   |-- color_test.go
-|   |   |-- substring_test.go
-|   |   `-- normalize_test.go
-|   `-- output/
-|       |-- print.go
-|       `-- print_test.go
-|-- docs/
-|   |-- audit_test.md
-|   |-- exercise.md
-|   |-- golden_tests.md
-|   |-- prd.md
-|   |-- workFlow.md
-|   `-- tasks/
-|       |-- Task01_ai_log.md
-|       |-- tasks01_cli.md
-|       |-- task02_banner.md
-|       |-- task03_renderer.md
-|       `-- task04_main.md
-|-- go.mod
-|-- agent_log.md
-|-- to_study.md
-`-- README.md
+left
+center
+right
+justify
 ```
-                
-## 5. TASKS
 
-### Task 01 - CLI
+Terminal width detection:
 
-Package: internal/cli
+- use only standard Go packages
+- read `COLUMNS`
+- fallback to `80` when missing or invalid
+- unit-test alignment through width-explicit functions
 
-Goal:
-Collect user input, select a supported banner, and tell `main.go` whether the program should continue or exit.
+Visible width must ignore ANSI escape sequences.
 
-Responsibilities:
+### Left
 
-- Choose interactive mode when no extra arguments are provided
-- Choose argument mode when text is provided through command-line arguments
-- Prompt for text, banner choice, optional color, and optional substring in interactive mode
-- Validate text, optional banner, optional color, and optional substring in argument mode
-- Validate the official CLI format: `go run . [STRING] [BANNER]`
-- Validate the official color format: `go run . --color=<color> [substring] [STRING]`
-- Print the official usage message for invalid formats
-- Print the official color usage message for invalid color formats
-- Support single-string execution with default standard banner
-- Return text, banner path, color, substring, exit flag, and errors to `main.go`
+Print flattened rows unchanged.
 
-Files:
+### Center
 
-internal/cli/args.go
-internal/cli/mode_picker.go
-internal/cli/interactive.go
-internal/cli/cli_test.go
-internal/cli/interactive_test.go
+Pad each row with:
 
+```text
+(width - visibleRowWidth) / 2
+```
 
-### Task 02 - Banner Loading and Mapping
+Rows wider than width receive no padding.
 
-Package: internal/banner
+### Right
 
-Goal:
-Load the selected banner file and convert it into a character map.
+Pad each row with:
 
-Responsibilities:
-- Read the banner file from disk
-- Normalize CRLF line endings to LF
-- Split the file into lines
-- Map printable ASCII characters from 32 to 126
-- Store each character as []string with 8 lines
-- Return an error if the file is missing or malformed
+```text
+width - visibleRowWidth
+```
 
-Files:
-internal/banner/loader.go
-internal/banner/loader_test.go
+Rows wider than width receive no padding.
 
+### Justify
 
-### Task 03 - Renderer
+Justify must use structured segments.
 
-Package: internal/renderer
+Rules:
 
-Goal:
-Normalize user input and build the final ASCII-art output.
-
-Responsibilities:
-- Convert escaped newline sequences \n into separate input lines
-- Preserve empty lines caused by multiple newlines
-- Create 8 output rows for each input line
-- For each character, retrieve its banner from map[rune][]string
-- Append character rows horizontally
-- Resolve color names, hexadecimal colors, RGB values, and HSL values into ANSI escape codes
-- Detect substring positions before rendering and color matching character blocks
-- Handle empty input lines correctly
-- Return an error for unsupported characters
-
-Files:
-internal/renderer/build.go
-internal/renderer/build_test.go
-internal/renderer/color.go
-internal/renderer/color_test.go
-internal/renderer/normalize.go
-internal/renderer/normalize_test.go
-internal/renderer/substring.go
-internal/renderer/substring_test.go
-
-### Task 04 - Output Printing
-
-Package: internal/output
-
-Goal:
-Print the generated ASCII-art rows.
-
-Responsibilities:
-- Print each output row on a new line
-- Avoid extra messages
-- Keep printing separate from rendering logic
-
-Files:
-internal/output/print.go
-internal/output/print_test.go
-
-
-### Task 05 - Main Program Integration
-
-File: main.go
-
-Goal:
-Connect all packages into one working program.
-
-Responsibilities:
-- Call cli.PickMode(os.Args)
-- Load the selected banner
-- Normalize input
-- Build ASCII output
-- Pass color and substring settings into the renderer
-- Print the result
-- Repeat only in interactive mode
-- Exit after one render in argument mode
-
-Files:
-main.go
-
-
-### Task 06 - Documentation
-
-Goal:
-Document how the program works and how to run it.
-
-Responsibilities:
-- Finalize README.md
-- Finalize docs/prd.md
-- Create task documentation files
-- Include usage examples
-- Include known limitations
-
-Files:
-README.md
-docs/prd.md
-docs/workFlow.md
-docs/tasks/tasks01_cli.md
-docs/tasks/task02_banner.md
-docs/tasks/task03_renderer.md
-docs/tasks/task04_main.md
-
-Suggested Task Order
-1. Banner Loading and Mapping
-2. Input Normalization
-3. ASCII Renderer
-4. Output Printing
-5. CLI
-6. Main Program Integration
-7. Documentation
-
-## 6. Non-Goals
-
-- The program will not support multiple independent strings through the command line.
-- The program will not support custom banner files outside the three provided files:
-    - standard.txt
-    - shadow.txt
-    - thinkertoy.txt
-- The program will not support custom user-created templates outside the provided banner files.
-- The program will not allow users to edit or modify banner files from inside the program.
-- The program will not support arrow-key navigation for banner selection.
-- The program will not support multiple color flags in the same command.
-- The program will not support exporting output to a file.
-- The program will not support alignment options such as center, left, right, or justify.
-- The program will not support resizing, scaling, or changing the height of ASCII-art characters.
-- The program will not support non-printable ASCII characters.
-- The program will not support Unicode characters outside the printable ASCII range.
-- The program will not run as a web application or GUI application.
+- expand only gaps between word segments
+- never expand spaces inside ASCII-art letters
+- do not use leading or trailing spaces as expandable gaps
+- one-word lines are left-aligned
+- rows wider than width are left-aligned
+- distribute extra gap width from left to right
 
 ---
 
-## 7. Acceptance Criteria
-
-### Functional Acceptance Criteria
-
-- [x] The program starts with `go run .` in interactive mode.
-- [x] The program supports `go run . [STRING] [BANNER]` in argument mode.
-- [x] The program still supports a single `[STRING]` argument.
-- [x] Interactive mode prompts the user to input a string.
-- [x] Interactive mode prompts the user to select one of three banner files.
-- [x] Interactive mode prompts the user to optionally enter a color after banner selection.
-- [x] Interactive mode prompts the user to optionally enter a substring when a color is provided.
-- [x] Interactive mode accepts an empty color prompt as uncolored rendering.
-- [x] Interactive mode accepts an empty substring prompt as whole-string color rendering.
-- [x] Argument mode accepts `standard`, `standard.txt`, `shadow`, `shadow.txt`, `thinkertoy`, and `thinkertoy.txt`.
-- [x] Argument mode accepts `--color=<color> [STRING]` and colors the whole rendered string.
-- [x] Argument mode accepts `--color=<color> [SUBSTRING] [STRING]` and colors every matching substring.
-- [x] Argument mode accepts `[STRING] [BANNER] --color=<color> [SUBSTRING]` as the banner-compatible color form.
-- [x] The selected banner acts as the rendering template.
-- [x] The program supports `standard`, `shadow`, and `thinkertoy` templates.
-- [x] The program prints the input string as ASCII art using the selected banner.
-- [x] The program supports letters, numbers, spaces, and printable special characters from the banner.
-- [x] The program handles escaped `\n` sequences inside the input string.
-- [x] Interactive mode repeats the input flow after printing the output.
-- [x] Interactive mode exits when the user types `/exit` at the text, banner, color, or substring prompt.
-- [x] Argument mode exits after one render.
-
-### Error Handling Acceptance Criteria
-
-- [x] Empty interactive text is rejected with `No valid string input`.
-- [x] Invalid interactive banner choice is rejected with `Invalid banner choice` and the prompt repeats.
-- [x] Invalid interactive color values print the rendering error and return to the text input prompt.
-- [x] Missing argument-mode text prints the usage message.
-- [x] Empty argument-mode text prints the usage message.
-- [x] Invalid argument-mode banner names print the usage message.
-- [x] Invalid CLI formats print:
+## 8. Processing Flow
 
 ```text
-Usage: go run . [STRING] [BANNER]
-
-EX: go run . something standard
+cli.PickModeOptions
+-> banner.LoadBanner
+-> renderer.NormalizeInput
+-> renderer.BuildASCII
+-> output.PrintAlignedASCII or output.WriteAlignedASCIIFile
 ```
 
-- [x] Invalid color flag formats print:
-
-```text
-Usage: go run . [OPTION] [STRING]
-
-EX: go run . --color=<color> <substring to be colored> "something"
-```
-
-- [x] Too many arguments print the usage message.
-- [x] Unsupported characters return a rendering error.
-- [x] Invalid color names, hexadecimal color codes, RGB color codes, and HSL color codes return clear rendering errors.
-- [x] Missing or corrupted banner files return an error.
-
-### Technical Acceptance Criteria
-
-- [x] The project uses only standard Go packages.
-- [x] The project follows the agreed file structure.
-- [x] Banner files are parsed into `map[rune][]string`.
-- [x] CRLF banner files are normalized before parsing.
-- [x] Rendering logic is separated from CLI logic.
-- [x] Color matching and ANSI wrapping are testable inside the renderer package.
-- [x] Printing logic is separated from rendering logic.
-- [x] No ASCII-art generation logic exists inside `main.go`.
-- [x] Unit tests exist for banner loading, input normalization, rendering, output printing, and CLI validation.
-- [x] Unit tests exist for color lookup, color wrapping, substring matching, and color CLI validation.
-
-### Output Correctness Criteria
-
-Golden test expectations are documented in `docs/golden_tests.md`.
-
-- [x] Official banners load with 95 mapped runes.
-- [x] Empty normalized lines produce blank output rows.
-- [x] Adjacent characters are composed horizontally row by row.
-- [x] `PrintASCII` prints exactly one newline per output row.
-- [x] Input `"\n"` with standard.txt produces one empty line
-- [x] Input `"Hello\n"` with standard.txt prints only Hello
-- [x] Color is applied to ASCII-art character blocks, not by replacing text after rendering.
-- [x] ANSI reset codes are applied after colored output segments.
-
-### Audit Test Cases
-
-The implementation must pass the official audit-style commands below. Commands that pipe to `cat -e` must preserve all spaces and print one `$` marker per output line when viewed through `cat -e`.
-
-Invalid format:
-
-```bash
-go run . "banana" standard abc
-```
-
-Expected output:
-
-```text
-Usage: go run . [STRING] [BANNER]
-
-EX: go run . something standard
-```
-
-Required rendering cases:
-
-```bash
-go run . "hello" standard | cat -e
-go run . "hello world" shadow | cat -e
-go run . "nice 2 meet you" thinkertoy | cat -e
-go run . "you & me" standard | cat -e
-go run . "123" shadow | cat -e
-go run . "/(\")" thinkertoy | cat -e
-go run . "ABCDEFGHIJKLMNOPQRSTUVWXYZ" shadow | cat -e
-go run . "\"#$%&/()*+,-./" thinkertoy | cat -e
-go run . "It's Working" thinkertoy | cat -e
-```
-
-Each command must render the input in the selected template with all characters aligned across exactly 8 output rows per normalized input line.
-
-The program must also render correctly when given randomized upper/lowercase letters, numbers, printable special characters, or mixed printable input followed by `standard`, `shadow`, or `thinkertoy`.
-
-Any unsupported banner name used as the second argument must print the official usage message.
-
-Color audit cases:
-
-```bash
-go run . --color red "banana"
-go run . --color=red "hello world"
-go run . --color=#ff0000 "hello world"
-go run . --color=RGB,255,0,0 "hello world"
-go run . --color=hsl,120,100%,50% "hello world"
-go run . --color=green "1 + 1 = 2"
-go run . --color=yellow "(%&) ??"
-go run . --color=orange GuYs "HeY GuYs"
-go run . --color=blue B 'RGB()'
-go run . "hello world" shadow --color=cyan world
-```
-
-The first command must print the exact color usage message. The other commands must render the selected text in color while preserving ASCII-art alignment. The banner-compatible form must use the selected banner and color only the requested substring when one is provided.
+`main.go` is the integration layer only.
 
 ---
 
-## 8. Architecture
+## 9. Task Split
 
-The project follows a **Pipeline Architecture**.
-
-This means the program processes data through a clear sequence of steps, where each step has one responsibility and passes its result to the next step.
+Task files:
 
 ```text
-CLI mode selection
--> Option parsing
--> Banner loading and mapping
--> Input normalization
--> Colored position detection
--> ASCII rendering
--> Output printing
--> Repeat loop (interactive mode only)
+docs/tasks/task01_cli_alignment.md
+docs/tasks/task02_structured_renderer.md
+docs/tasks/task03_output_alignment_integration.md
 ```
 
-### Why Pipeline Architecture
+Ownership:
 
-Pipeline architecture fits this project because the program has a fixed and predictable flow. The input must be collected first, then the banner and optional color settings must be selected, then the banner is loaded, then the string is normalized, rendered, and printed. Each stage depends on the output of the previous stage.
-
-This keeps the code simple, readable, and easy to test.
-
-### Benefits
-
-- Clear separation of responsibilities
-- Easier unit testing for each step
-- Easier debugging because problems can be isolated to one stage
-- Cleaner `main.go`, since it only coordinates the pipeline
-- Easier future extension, such as adding file export or more banner styles
-
-### Tradeoffs
-
-- More files and packages than a single-file solution
-- Slightly more structure than the minimum required
-- Requires clear communication between packages
-
-### Architecture Sketch
-
-```text
-+------------------------+
-| cli.PickMode(os.Args) |
-+------------------------+
-            |
-            v
-+-------------------------------------+
-| text + banner + color + substring   |
-+-------------------------------------+
-            |
-            v
-+------------------------+
-| banner.LoadBanner      |
-+------------------------+
-            |
-            v
-+------------------------+
-| renderer.NormalizeInput|
-+------------------------+
-            |
-            v
-+------------------------+
-| renderer.BuildASCII    |
-+------------------------+
-            |
-            v
-+------------------------+
-| output.PrintASCII      |
-+------------------------+
-            |
-            v
-+-------------------------------------+
-| repeat loop (interactive mode only) |
-+-------------------------------------+
-```
+- Programmer 1: CLI alignment option and interactive alignment prompt
+- Programmer 2: structured renderer replacement
+- Programmer 3: output alignment and main integration
 
 ---
 
-
-## 9. Milestones
-
-1. Banner Parsing Works
-2. Rendering Engine Works
-3. Output Printing Works
-4. Interactive CLI Works
-5. Full Integration Completed
-6. Testing & Cleanup Completed
-
----
-
-## 10. Risks / Resolved Notes
-
-### Risks
-
-- Incorrect banner parsing leading to broken output
-- Incorrect handling of `\n` sequences
-- Unsupported characters causing errors or crashes
-- Output misalignment due to incorrect row building
-- Infinite loop or improper CLI exit handling
-- Missing or invalid banner files
-- Tight coupling between CLI, rendering, and banner logic
-
-### Resolved Notes
-
-- Error message text is simple and tested where it is user-facing.
-- Banner files are loaded once per selected render cycle.
-- Trailing banner file newlines are handled by `LoadBanner`.
-- User-facing color values support preset names, `#RRGGBB`, `rgb,<red>,<green>,<blue>`, and `hsl,<hue>,<saturation>%,<lightness>%`.
-- RGB and HSL use comma-only syntax so audit commands can pass them as one `--color=` argument without shell-sensitive parentheses.
-- Color is still rendered internally with ANSI escape sequences.
-
-## 11. Integration Contract
-
-These contracts define the boundaries between packages and are intended to minimize coupling between CLI, banner parsing, rendering, and output responsibilities.
-
-Current function signatures:
-
-### Banner
-
-```go
-LoadBanner(path string) (map[rune][]string, error)
-```
-
-### Renderer
-
-```go
-NormalizeInput(input string) []string
-BuildASCII(lines []string, banner map[rune][]string, substring string, color string) ([]string, error)
-getANSIColor(color string) (string, error)
-colorize(text string, colorCode string) string
-coloredPositions(s string, substring string) map[int]bool
-```
-
-### Output
-
-```go
-PrintASCII(output []string)
-```
+## 10. Acceptance Criteria
 
 ### CLI
 
-```go
-PickMode(args []string) (input string, bannerPath string, color string, substring string, exit bool, err error)
-RunArgumentMode(args []string) (input string, bannerPath string, color string, substring string, err error)
-RunInteractive() (input string, bannerPath string, color string, substring string, exit bool, err error)
-```
+- [ ] `--align=left`, `--align=center`, `--align=right`, and `--align=justify` are accepted.
+- [ ] Alignment flags can appear in any position.
+- [ ] Invalid alignment flags print the exact alignment usage message.
+- [ ] Duplicate alignment flags are rejected.
+- [ ] Existing color and output flags still work.
+- [ ] Single-string mode still works.
+
+### Renderer
+
+- [ ] `BuildASCII` returns structured output.
+- [ ] Word and space segments are preserved.
+- [ ] Existing visual output can be reproduced by flattening structured output.
+- [ ] Color rendering still works.
+- [ ] Escaped newlines still work.
+- [ ] Unsupported characters return an error.
+
+### Output
+
+- [ ] Left alignment matches existing output.
+- [ ] Center alignment pads correctly.
+- [ ] Right alignment pads correctly.
+- [ ] Justify expands only spaces between word segments.
+- [ ] One-word justify lines are not stretched.
+- [ ] ANSI escape codes do not count toward visible width.
+- [ ] File output receives the same aligned rows as terminal output.
+
+### Integration
+
+- [ ] `go test ./...` passes.
+- [ ] Alignment works with all three banners.
+- [ ] Alignment works with color.
+- [ ] Alignment works with output files.
+- [ ] Interactive mode can select alignment.
+
+---
+
+## 11. Non-Goals
+
+- No custom banner paths.
+- No custom banner editing.
+- No multiple color flags.
+- No multiple independent input strings.
+- No Unicode rendering outside printable ASCII banner support.
+- No web or GUI mode.
+- No resizing or scaling of ASCII-art character height.
+- No justify implementation based on mutating already-flattened rendered rows.
+
+---
+
+## 12. Risks
+
+- Justify could distort ASCII letters if implemented on flat rows.
+- ANSI color codes can break width calculations if counted as visible characters.
+- Terminal width may be unavailable in some environments.
+- Parser changes can accidentally break original audit commands.
+- Structured rendering can duplicate old renderer logic if not designed carefully.
+
+Mitigation:
+
+- Use structured word and space segments.
+- Test visible-width calculations with ANSI strings.
+- Fallback to width `80`.
+- Keep existing CLI tests and add alignment cases.
+- Add flattening tests to compare structured rendering to previous output.

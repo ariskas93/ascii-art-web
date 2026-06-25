@@ -1,27 +1,30 @@
-# Workflow - ASCII Art Output
+# Workflow - ASCII Art Alignment
 
 ## Objective
 
-Add support for writing the rendered ASCII-art result into a file with:
+Add alignment support to the existing ASCII-Art program:
 
 ```bash
-go run . --output=<fileName.txt> "hello"
-go run . --output=<fileName.txt> "hello" standard
+go run . --align=left "hello"
+go run . --align=center "hello" standard
+go run . --align=right "hello" shadow
+go run . --align=justify "hello world" thinkertoy
 ```
 
-The program must still support:
+The program must keep supporting:
 
 ```bash
 go run . "hello"
+go run . "hello" shadow
+go run . --color=red ll "hello"
+go run . --output=out.txt "hello"
 ```
 
-If other optional projects are already implemented, such as color, the program should accept those correctly formatted options together with output.
-
-Interactive mode should also collect output intent through prompts. When the user chooses file output, the CLI stores the file name in `OutputFile`; otherwise `OutputFile` stays empty and the result is printed to the terminal.
+Alignment must work together with color, banner selection, escaped newlines, interactive mode, and output files.
 
 ## Shared Contract
 
-Use one parsed options value across the CLI and main integration:
+The CLI returns one options value:
 
 ```go
 type Options struct {
@@ -30,71 +33,127 @@ type Options struct {
 	Color      string
 	Substring  string
 	OutputFile string
+	Align      string
 }
 ```
 
-`OutputFile == ""` means print to stdout.
+`Align == ""` or `Align == "left"` means left alignment.
 
-`OutputFile != ""` means write to the named file.
+Accepted alignment values:
+
+```text
+left
+center
+right
+justify
+```
+
+## Architecture Decision
+
+The project will replace flat rendering with structured rendering.
+
+Old renderer output:
+
+```go
+[]string
+```
+
+New renderer output:
+
+```go
+type RenderedASCII []RenderedLine
+```
+
+The renderer is still responsible only for converting input text into ASCII-art. It does not know about alignment or terminal width.
+
+The output package receives the structured output and decides how to print or write it.
+
+## Why This Matters
+
+Left, center, and right alignment can work on flat rows.
+
+Justify cannot safely work on flat rows because spaces inside ASCII-art letters look the same as spaces between words.
+
+Therefore, the renderer must preserve segments:
+
+```text
+word("hello")
+space(" ")
+word("world")
+```
+
+Then the output package can expand only the real word gaps.
 
 ## Task Split
 
-### Task 01 - CLI Output Option
+### Task 01 - CLI Alignment Option
 
 Owner: Programmer 1
 
-File: `docs/tasks/task01_cli_output.md`
+File: `docs/tasks/task01_cli_alignment.md`
 
 Responsibilities:
 
-- Parse `--output=<fileName.txt>`.
-- In options-aware interactive mode, ask whether the user wants to write to a file or print to the terminal.
-- If the interactive user chooses file output, ask for the output file name.
-- Reject malformed output flags with the exact output usage message.
-- Keep single-string mode working.
-- Keep banner and correctly formatted color option compatibility.
-- Return the shared options struct.
+- Add `Align` to `cli.Options`.
+- Parse `--align=<left|center|right|justify>`.
+- Keep flags order-flexible.
+- Reject malformed and duplicate alignment flags.
+- Add interactive alignment prompt.
+- Update CLI tests.
 
-### Task 02 - Output Writer
+### Task 02 - Structured Renderer
 
 Owner: Programmer 2
 
-File: `docs/tasks/task02_output_writer.md`
+File: `docs/tasks/task02_structured_renderer.md`
 
 Responsibilities:
 
-- Add file writing in `internal/output`.
-- Prefer shared writer logic for terminal and file output.
-- Preserve spacing, newlines, and ANSI codes.
-- Return errors instead of printing or exiting.
-- Add output package tests.
+- Change `BuildASCII` to return structured output.
+- Preserve word and space-run segments.
+- Keep color rendering behavior.
+- Keep newline behavior.
+- Add renderer tests for segment structure and flattening.
 
-### Task 03 - Main Integration
+### Task 03 - Output Alignment and Main Integration
 
 Owner: Programmer 3
 
-File: `docs/tasks/task03_main_integration.md`
+File: `docs/tasks/task03_output_alignment_integration.md`
 
 Responsibilities:
 
-- Connect parsed `OutputFile` to the final output step.
-- Print to terminal when no output file is set.
-- Write to file when output file mode is set.
-- Keep renderer and banner responsibilities unchanged.
-- Run full tests and manual checks.
+- Add output functions for aligned writing.
+- Implement left, center, right, and justify.
+- Detect terminal width using standard packages.
+- Ignore ANSI escape sequences when measuring visible width.
+- Update `main.go` for structured output and alignment.
+- Add output and integration tests.
 
 ## Implementation Order
 
-1. Agree on the `Options` struct and usage message constants.
-2. Programmer 1 updates CLI parsing and CLI tests.
-3. Programmer 2 adds output writer functions and output tests.
-4. Programmer 3 integrates the final branch in `main.go`.
-5. Run `go test ./...` and manual output checks.
+1. Programmer 1 adds `Align` parsing and tests.
+2. Programmer 2 replaces flat rendering with structured rendering.
+3. Programmer 3 adapts output and `main.go` to structured rendering.
+4. Run package tests while each task is in progress.
+5. Run `go test ./...`.
+6. Run manual checks for all alignments with standard, shadow, color, and file output.
 
-## Exact Output Usage Message
+## Manual Checks
+
+```bash
+go run . --align=left "hello" standard
+go run . --align=center "hello" standard
+go run . --align=right "hello" standard
+go run . --align=justify "hello world" standard
+go run . "hello world" shadow --align=center --color=cyan world
+go run . --output=aligned.txt --align=right "hello" standard
+```
+
+## Exact Alignment Usage Message
 
 ```text
 Usage: go run . [OPTION] [STRING] [BANNER]
 
-EX: go run . --output=<fileName.txt> something standard
+EX: go run . --align=<left|center|right|justify> something standard
 ```

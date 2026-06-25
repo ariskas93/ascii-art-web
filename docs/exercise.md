@@ -1,118 +1,252 @@
-# ASCII Art Color Project
+# ASCII-Art Alignment Objective
 
-## Description
+We are extending the existing ASCII-Art project by implementing the **alignment** optional objective.
 
-This project extends the ASCII Art program by adding support for colored output.
+The current project already supports:
 
-The program must manipulate colors using the following flag format:
+- argument mode
+- interactive mode
+- `standard`, `shadow`, and `thinkertoy` banners
+- color rendering with `--color=<color>`
+- output files with `--output=<file>`
 
-```bash
---color=<color> <substring to be colored>
-```
-
-- `--color` is the required flag
-- `<color>` is the desired color
-- `<substring to be colored>` is the part of the text that should be colored
-
-This implementation supports four user-facing color notations:
-
-- preset color names, such as `red`
-- full hexadecimal colors, such as `#ff0000`
-- RGB comma form, such as `rgb,255,0,0`
-- HSL comma form, such as `hsl,0,100%,50%`
-
-ANSI escape sequences are still used internally for terminal output. Raw ANSI input such as `ansi:31` is not supported.
-
-The substring can contain:
-
-- A single character
-- A word
-- Multiple characters
-
-If no substring is specified, the entire string must be colored.
-
----
-
-## Invalid Flag Format
-
-The flag must follow **exactly** this format:
+The next project goal is to add:
 
 ```bash
---color=<color>
+go run . --align=left "hello"
+go run . --align=center "hello" shadow
+go run . "hello" shadow --align=right
+go run . --align=justify "hello world"
 ```
 
-Any invalid format must return the following usage message:
+## Current Architecture
+
+The project uses a pipeline:
 
 ```text
-Usage: go run . [OPTION] [STRING]
-
-EX: go run . --color=<color> <substring to be colored> "something"
+CLI
+-> Banner Loader
+-> Normalize Input
+-> Renderer
+-> Output
 ```
 
----
+Current packages:
 
-## Example
+- `internal/cli`
+- `internal/banner`
+- `internal/renderer`
+- `internal/output`
 
-### Command
+## Final Design Decision
+
+Alignment will not be implemented inside the renderer.
+
+The renderer will still be responsible for converting text into ASCII-art, but it will no longer flatten each rendered line into plain `[]string` too early.
+
+Instead, `BuildASCII` will return structured rendering data.
+
+The output package will use that structured data to apply:
+
+- left alignment
+- center alignment
+- right alignment
+- justify alignment
+
+This replaces the older idea where output would receive only rendered `[]string` rows.
+
+## Why Structured Rendering
+
+Justify alignment needs to expand only the spaces between words.
+
+If the output package receives only final rendered rows, it cannot safely tell the difference between:
+
+- spaces between words
+- spaces inside ASCII-art letters
+- spaces from the banner style itself
+
+Trying to justify already-flattened rows would damage the shapes of the ASCII-art characters.
+
+Structured rendering solves this by preserving word and space-run segments.
+
+Example input:
+
+```text
+"hello   world"
+```
+
+Structured rendering:
+
+```text
+word("hello")
+space("   ")
+word("world")
+```
+
+Each segment contains its own 8 rendered ASCII-art rows.
+
+## Proposed Renderer Contract
+
+```go
+type SegmentKind int
+
+const (
+	SegmentWord SegmentKind = iota
+	SegmentSpace
+)
+
+type RenderedSegment struct {
+	Kind SegmentKind
+	Text string
+	Rows []string
+}
+
+type RenderedLine struct {
+	Segments []RenderedSegment
+}
+
+type RenderedASCII []RenderedLine
+```
+
+Preferred final renderer API:
+
+```go
+func BuildASCII(lines []string, banner map[rune][]string, substring string, color string) (RenderedASCII, error)
+```
+
+The function name can stay `BuildASCII`, but the return type changes from flat rows to structured output.
+
+## CLI Rules
+
+The CLI should parse:
+
+```text
+--align=left
+--align=center
+--align=right
+--align=justify
+```
+
+Flags may appear in any order, as long as they use the `--flag=value` form.
+
+Examples:
 
 ```bash
-go run . --color=red kit "a king kitten have kit"
+go run . --align=center "hello"
+go run . "hello" --align=center
+go run . "hello" shadow --align=right
+go run . --output=out.txt --align=justify "hello world"
+go run . --color=cyan world "hello world" --align=center
 ```
 
-### Expected Behavior
-
-The substring `kit` must be colored in:
-
-- `kitten`
-- `kit`
-
-Other supported examples:
+Invalid forms:
 
 ```bash
-go run . --color=#ff0000 "hello"
-go run . --color=RGB,255,0,0 "hello"
-go run . --color=hsl,120,100%,50% "hello"
-go run . "hello world" shadow --color=cyan world
+go run . --align center "hello"
+go run . --align= "hello"
+go run . -align=center "hello"
+go run . --alignment=center "hello"
 ```
 
----
+## Shared Options
 
-## Compatibility With Other Options
+The CLI should return a configuration object containing:
 
-If other optional ASCII-Art projects are implemented, the program must still support:
-
-- Additional valid `[OPTION]`
-- Additional valid `[BANNER]`
-
-The program must also continue working with a single `[STRING]` argument.
-
-Example:
-
-```bash
-go run . "hello"
+```go
+type Options struct {
+	Text       string
+	BannerPath string
+	Color      string
+	Substring  string
+	OutputFile string
+	Align      string
+}
 ```
 
----
+Default alignment is left.
 
-# Requirements
+## Terminal Width
 
-- The project must be written in Go
-- The code must follow good practices
-- Unit tests are recommended
+Use only standard Go packages.
 
----
+Recommended first version:
 
-# Allowed Packages
+- read `COLUMNS`
+- parse it as an integer
+- fallback to `80` when missing or invalid
+- keep width detection in the output package
+- expose width-explicit functions for unit tests
 
-Only standard Go packages are allowed.
+## Alignment Algorithms
 
----
+### Left
 
-# Learning Objectives
+Print the flattened structured output as-is.
 
-This project will help you learn about:
+### Center
 
-- The Go file system (`fs`) API
-- Color converters
-- Data manipulation
-- Terminal display
+For each rendered row:
+
+```text
+left padding = (terminal width - visible row width) / 2
+```
+
+If the row is wider than the terminal width, print it unchanged.
+
+### Right
+
+For each rendered row:
+
+```text
+left padding = terminal width - visible row width
+```
+
+If the row is wider than the terminal width, print it unchanged.
+
+### Justify
+
+Justify must use structured segments.
+
+Rules:
+
+- Expand only gaps between word segments.
+- Do not expand spaces inside rendered ASCII-art letters.
+- Do not expand leading or trailing spaces.
+- Lines with fewer than two word segments are printed left-aligned.
+- If the rendered words already exceed terminal width, print left-aligned.
+- Distribute extra gap width from left to right.
+
+## Task Split
+
+Task files:
+
+```text
+docs/tasks/task01_cli_alignment.md
+docs/tasks/task02_structured_renderer.md
+docs/tasks/task03_output_alignment_integration.md
+```
+
+Ownership:
+
+- Programmer 1: CLI alignment option and `Options.Align`
+- Programmer 2: structured renderer replacement
+- Programmer 3: output alignment and main integration
+
+## Edge Cases
+
+- one-word justify lines
+- empty normalized lines
+- leading spaces
+- trailing spaces
+- multiple spaces between words
+- ANSI color codes in aligned output
+- rows wider than terminal width
+- missing or invalid `COLUMNS`
+- alignment combined with output files
+- alignment combined with colored substrings
+
+## Development Rule
+
+Do not implement justify by searching or stretching spaces inside final rendered rows.
+
+Justify must be based on structured word and space segments from the renderer.

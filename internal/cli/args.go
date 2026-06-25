@@ -27,127 +27,177 @@ type Options struct {
 	OutputFile string
 }
 
+type positionalArg struct {
+	value string
+	index int
+}
+
 func RunArgumentModeOptions(args []string) (Options, error) {
+	return parseFlexibleArguments(args, true)
+}
+
+func RunArgumentMode(args []string) (string, string, string, string, error) {
+	opts, err := parseFlexibleArguments(args, false)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	return opts.Text, opts.BannerPath, opts.Color, opts.Substring, nil
+}
+
+func parseFlexibleArguments(args []string, allowOutput bool) (Options, error) {
 	if len(args) < 2 {
 		return Options{}, errors.New(UsageMessage)
 	}
 
-	outputFile := ""
-	argsToParse := args
-
-	if hasOutputSyntax(args[1:]) {
-		var err error
-		outputFile, argsToParse, err = parseOutputMode(args)
-		if err != nil {
-			return Options{}, err
-		}
-	}
-
-	text, bannerPath, color, substring, err := RunArgumentMode(argsToParse)
+	opts := Options{BannerPath: defaultBannerPath}
+	operands, colorIndex, err := collectOptions(args, allowOutput, &opts)
 	if err != nil {
 		return Options{}, err
 	}
 
-	return Options{
-		Text:       text,
-		BannerPath: bannerPath,
-		Color:      color,
-		Substring:  substring,
-		OutputFile: outputFile,
-	}, nil
-}
-
-func RunArgumentMode(args []string) (string, string, string, string, error) {
-	if len(args) < 2 {
-		return "", "", "", "", errors.New(UsageMessage)
+	if err := applyOperands(&opts, operands, colorIndex); err != nil {
+		return Options{}, err
 	}
 
-	if len(args) > 5 {
-		if hasColorSyntax(args[1:]) {
-			return "", "", "", "", errors.New(ColorUsageMessage)
+	return opts, nil
+}
+
+func collectOptions(args []string, allowOutput bool, opts *Options) ([]positionalArg, int, error) {
+	operands := []positionalArg{}
+	colorIndex := -1
+	seenColor := false
+	seenOutput := false
+
+	for i := 1; i < len(args); i++ {
+		arg := args[i]
+
+		switch {
+		case isColorSyntax(arg):
+			if seenColor {
+				return nil, -1, errors.New(ColorUsageMessage)
+			}
+			color, err := parseColorFlag(arg)
+			if err != nil {
+				return nil, -1, err
+			}
+			opts.Color = color
+			colorIndex = i
+			seenColor = true
+		case isOutputSyntax(arg):
+			if !allowOutput || seenOutput {
+				return nil, -1, errors.New(OutputUsageMessage)
+			}
+			outputFile, err := parseOutputFlag(arg)
+			if err != nil {
+				return nil, -1, err
+			}
+			opts.OutputFile = outputFile
+			seenOutput = true
+		case strings.HasPrefix(arg, "--"):
+			return nil, -1, errors.New(UsageMessage)
+		default:
+			operands = append(operands, positionalArg{
+				value: arg,
+				index: i,
+			})
 		}
-		return "", "", "", "", errors.New(UsageMessage)
 	}
 
-	if countColorSyntax(args[1:]) > 1 {
-		return "", "", "", "", errors.New(ColorUsageMessage)
-	}
-
-	if hasColorSyntax(args[1:]) {
-		return parseColorMode(args)
-	}
-
-	return parsePlainMode(args)
+	return operands, colorIndex, nil
 }
 
-func parsePlainMode(args []string) (string, string, string, string, error) {
-	if len(args) > 3 {
-		return "", "", "", "", errors.New(UsageMessage)
+func applyOperands(opts *Options, operands []positionalArg, colorIndex int) error {
+	if opts.Color != "" {
+		return applyColorOperands(opts, operands, colorIndex)
 	}
 
-	text := args[1]
+	text, bannerPath, err := parseTextBannerOperands(operands)
+	if err != nil {
+		if len(operands) == 0 && opts.OutputFile != "" {
+			return errors.New(OutputUsageMessage)
+		}
+		return err
+	}
+
+	opts.Text = text
+	opts.BannerPath = bannerPath
+	return nil
+}
+
+func applyColorOperands(opts *Options, operands []positionalArg, colorIndex int) error {
+	if len(operands) == 0 {
+		return errors.New(ColorUsageMessage)
+	}
+
+	text, bannerPath, err := parseTextBannerOperands(operands)
+	if err == nil {
+		opts.Text = text
+		opts.BannerPath = bannerPath
+		return nil
+	}
+
+	candidateIndex := findSubstringCandidate(operands, colorIndex)
+	if candidateIndex >= 0 {
+		remaining := removeOperand(operands, candidateIndex)
+		if len(remaining) == 0 {
+			return errors.New(ColorUsageMessage)
+		}
+
+		text, bannerPath, err = parseTextBannerOperands(remaining)
+		if err == nil {
+			opts.Text = text
+			opts.BannerPath = bannerPath
+			opts.Substring = operands[candidateIndex].value
+			return nil
+		}
+
+		return errors.New(ColorUsageMessage)
+	}
+
+	if len(operands) > 2 {
+		return errors.New(ColorUsageMessage)
+	}
+
+	return err
+}
+
+func parseTextBannerOperands(operands []positionalArg) (string, string, error) {
+	if len(operands) == 0 || len(operands) > 2 {
+		return "", "", errors.New(UsageMessage)
+	}
+
+	text := operands[0].value
 	if text == "" {
-		return "", "", "", "", errors.New(UsageMessage)
+		return "", "", errors.New(UsageMessage)
 	}
 
 	bannerPath := defaultBannerPath
-	if len(args) == 3 {
+	if len(operands) == 2 {
 		var err error
-		bannerPath, err = normalizeBannerArg(args[2])
+		bannerPath, err = normalizeBannerArg(operands[1].value)
 		if err != nil {
-			return "", "", "", "", err
+			return "", "", err
 		}
 	}
 
-	return text, bannerPath, "", "", nil
+	return text, bannerPath, nil
 }
 
-func parseColorMode(args []string) (string, string, string, string, error) {
-	if isColorSyntax(args[1]) {
-		color, err := parseColorFlag(args[1])
-		if err != nil {
-			return "", "", "", "", err
-		}
-		switch len(args) {
-		case 3:
-			if args[2] == "" {
-				return "", "", "", "", errors.New(ColorUsageMessage)
-			}
-			return args[2], defaultBannerPath, color, "", nil
-		case 4:
-			if args[3] == "" {
-				return "", "", "", "", errors.New(ColorUsageMessage)
-			}
-			return args[3], defaultBannerPath, color, args[2], nil
-		default:
-			return "", "", "", "", errors.New(ColorUsageMessage)
+func findSubstringCandidate(operands []positionalArg, colorIndex int) int {
+	for i, arg := range operands {
+		if arg.index == colorIndex+1 {
+			return i
 		}
 	}
+	return -1
+}
 
-	if len(args) == 4 || len(args) == 5 {
-		if !isColorSyntax(args[3]) {
-			return "", "", "", "", errors.New(ColorUsageMessage)
-		}
-		text := args[1]
-		if text == "" {
-			return "", "", "", "", errors.New(UsageMessage)
-		}
-		bannerPath, err := normalizeBannerArg(args[2])
-		if err != nil {
-			return "", "", "", "", err
-		}
-		color, err := parseColorFlag(args[3])
-		if err != nil {
-			return "", "", "", "", err
-		}
-		substring := ""
-		if len(args) == 5 {
-			substring = args[4]
-		}
-		return text, bannerPath, color, substring, nil
-	}
-
-	return "", "", "", "", errors.New(ColorUsageMessage)
+func removeOperand(operands []positionalArg, index int) []positionalArg {
+	remaining := make([]positionalArg, 0, len(operands)-1)
+	remaining = append(remaining, operands[:index]...)
+	remaining = append(remaining, operands[index+1:]...)
+	return remaining
 }
 
 func parseColorFlag(flag string) (string, error) {
@@ -161,45 +211,15 @@ func parseColorFlag(flag string) (string, error) {
 	return color, nil
 }
 
-func parseOutputMode(args []string) (string, []string, error) {
-	if len(args) < 2 || !strings.HasPrefix(args[1], "--output=") {
-		return "", nil, errors.New(OutputUsageMessage)
+func parseOutputFlag(flag string) (string, error) {
+	if !strings.HasPrefix(flag, "--output=") {
+		return "", errors.New(OutputUsageMessage)
 	}
-
-	outputFile := strings.TrimPrefix(args[1], "--output=")
+	outputFile := strings.TrimPrefix(flag, "--output=")
 	if outputFile == "" {
-		return "", nil, errors.New(OutputUsageMessage)
+		return "", errors.New(OutputUsageMessage)
 	}
-
-	if countOutputSyntax(args[1:]) > 1 {
-		return "", nil, errors.New(OutputUsageMessage)
-	}
-
-	argsToParse := append([]string{args[0]}, args[2:]...)
-	if len(argsToParse) < 2 {
-		return "", nil, errors.New(OutputUsageMessage)
-	}
-
-	return outputFile, argsToParse, nil
-}
-
-func hasOutputSyntax(args []string) bool {
-	for _, arg := range args {
-		if isOutputSyntax(arg) {
-			return true
-		}
-	}
-	return false
-}
-
-func countOutputSyntax(args []string) int {
-	count := 0
-	for _, arg := range args {
-		if isOutputSyntax(arg) {
-			count++
-		}
-	}
-	return count
+	return outputFile, nil
 }
 
 func isOutputSyntax(arg string) bool {
@@ -207,25 +227,6 @@ func isOutputSyntax(arg string) bool {
 		strings.HasPrefix(arg, "--output=") ||
 		strings.HasPrefix(arg, "-output=") ||
 		strings.HasPrefix(arg, "--outputs=")
-}
-
-func hasColorSyntax(args []string) bool {
-	for _, arg := range args {
-		if isColorSyntax(arg) {
-			return true
-		}
-	}
-	return false
-}
-
-func countColorSyntax(args []string) int {
-	count := 0
-	for _, arg := range args {
-		if isColorSyntax(arg) {
-			count++
-		}
-	}
-	return count
 }
 
 func isColorSyntax(arg string) bool {

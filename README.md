@@ -2,14 +2,33 @@
 
 ASCII-ART is a Go command-line program that renders text as multi-line ASCII art using predefined banner files.
 
-The program supports:
+The current implementation supports:
 
-- interactive mode
 - argument mode
+- interactive mode
 - three banner styles: `standard`, `shadow`, and `thinkertoy`
 - foreground color using preset names, full hexadecimal color codes, RGB, or HSL
 - escaped newline sequences written as `\n`
+- output files with `--output=<file>`
 - printable ASCII characters supported by the banner files
+
+The active project objective is to add alignment:
+
+```bash
+go run . --align=left "Hello"
+go run . --align=center "Hello" shadow
+go run . --align=right "Hello" standard
+go run . --align=justify "Hello world" thinkertoy
+```
+
+Alignment design and task ownership are documented in:
+
+```text
+docs/prd.md
+docs/exercise.md
+docs/workFlow.md
+docs/tasks/
+```
 
 ## Requirements
 
@@ -34,9 +53,10 @@ The program will:
 2. Ask you to choose a banner.
 3. Ask for an optional color.
 4. If a color is provided, ask for an optional substring to color.
-5. Print the ASCII-art output.
-6. Return to the text prompt.
-7. Continue until you type `/exit`.
+5. Ask whether to write output to a file.
+6. Print or write the ASCII-art output.
+7. Return to the text prompt.
+8. Continue until you type `/exit`.
 
 Banner choices in interactive mode:
 
@@ -45,18 +65,6 @@ Banner choices in interactive mode:
 2 -> shadow
 3 -> thinkertoy
 ```
-
-At the color prompt, press Enter to render without color. The prompt shows examples for each supported color format:
-
-```text
-Enter color, or press Enter for no color (/exit to quit)
-Examples: red, #ff0000, rgb,255,0,0, hsl,0,100%,50%
-Color:
-```
-
-If you enter a color and then press Enter at the substring prompt, the whole rendered string is colored. If you enter a substring, every matching occurrence is colored.
-
-You can type `/exit` at the text, banner, color, or substring prompt.
 
 ### Argument Mode
 
@@ -85,33 +93,51 @@ Accepted banner arguments:
 - `thinkertoy`
 - `thinkertoy.txt`
 
+If only one positional argument is provided, it is treated as text even if it equals a banner name.
+
+```bash
+go run . "shadow"
+```
+
+renders the word `shadow`.
+
 Argument mode renders once and exits.
 
-### Color
+## Order-Flexible Options
 
-Color works in both argument mode and interactive mode. In interactive mode, enter the color when prompted after choosing a banner.
+Supported options use `--flag=value` form:
 
-Color the whole rendered string with a preset color:
+```text
+--color=<color>
+--output=<file>
+```
+
+Options can appear before, between, or after positional arguments:
+
+```bash
+go run . --output=out.txt "Hello"
+go run . "Hello" --output=out.txt
+go run . "Hello" shadow --color=cyan
+go run . "hello world" shadow --output=out.txt --color=cyan world
+```
+
+Separated option values are invalid:
+
+```bash
+go run . --color red "Hello"
+go run . --output out.txt "Hello"
+```
+
+## Color
+
+Color works in both argument mode and interactive mode.
+
+Color the whole rendered string:
 
 ```bash
 go run . --color=red "Hello"
-```
-
-Color the whole rendered string with a full hexadecimal color code:
-
-```bash
 go run . --color=#ff0000 "Hello"
-```
-
-Color the whole rendered string with RGB:
-
-```bash
 go run . --color=rgb,255,0,0 "Hello"
-```
-
-Color the whole rendered string with HSL:
-
-```bash
 go run . --color=hsl,0,100%,50% "Hello"
 ```
 
@@ -121,13 +147,13 @@ Color every matching substring:
 go run . --color=RGB,255,0,0 kit "a king kitten have kit"
 ```
 
-Use a custom banner and color together by placing the banner before the color flag:
+Use a custom banner and color together:
 
 ```bash
 go run . "hello world" shadow --color=cyan world
 ```
 
-Supported preset names are:
+Supported preset names:
 
 - `black`
 - `red`
@@ -146,7 +172,7 @@ Supported color value formats:
 - RGB: `rgb,<red>,<green>,<blue>`, such as `rgb,255,0,0`
 - HSL: `hsl,<hue>,<saturation>%,<lightness>%`, such as `hsl,0,100%,50%`
 
-RGB and HSL prefixes are case-insensitive, so `RGB,255,0,0` and `HSL,0,100%,50%` also work. RGB values must be integers from `0` to `255`. HSL hue must be an integer from `0` to `360`; saturation and lightness must be integer percentages from `0%` to `100%`. The program does not support `rgb(...)`, `hsl(...)`, `rgba`, or `hsla` syntax.
+RGB and HSL prefixes are case-insensitive.
 
 Invalid color values print:
 
@@ -154,6 +180,58 @@ Invalid color values print:
 - invalid hexadecimal color code: `Invalid hexadecimal color code`
 - invalid RGB color code: `Invalid RGB color code`
 - invalid HSL color code: `Invalid HSL color code`
+
+## Output Files
+
+Write rendered ASCII art to a file:
+
+```bash
+go run . --output=banner.txt "Hello"
+go run . "Hello" shadow --output=banner.txt
+go run . --output=banner.txt --color=red "Hello"
+```
+
+When `--output=<file>` is used, the program writes to the file instead of printing the ASCII art to the terminal.
+
+ANSI color codes are preserved in file output.
+
+## Alignment Objective
+
+Alignment is the next implementation target.
+
+Planned syntax:
+
+```bash
+go run . --align=left "Hello"
+go run . --align=center "Hello"
+go run . --align=right "Hello"
+go run . --align=justify "Hello world"
+```
+
+Planned values:
+
+```text
+left
+center
+right
+justify
+```
+
+The agreed design replaces flat renderer output with structured rendering. The renderer will preserve word and space-run segments so the output package can implement justify without stretching spaces inside ASCII-art letters.
+
+Task split:
+
+- Programmer 1: CLI alignment option
+- Programmer 2: structured renderer
+- Programmer 3: output alignment and main integration
+
+Task files:
+
+```text
+docs/tasks/task01_cli_alignment.md
+docs/tasks/task02_structured_renderer.md
+docs/tasks/task03_output_alignment_integration.md
+```
 
 ## Newlines
 
@@ -164,32 +242,6 @@ go run . "Hello\nThere" standard
 ```
 
 This renders `Hello` and `There` as separate ASCII-art blocks.
-
-## Examples
-
-Default banner:
-
-```bash
-go run . "A"
-```
-
-Shadow banner:
-
-```bash
-go run . "Zone01" shadow
-```
-
-Thinkertoy banner:
-
-```bash
-go run . "Go!" thinkertoy
-```
-
-Multiple lines:
-
-```bash
-go run . "Hello\nWorld" standard
-```
 
 ## Project Structure
 
@@ -212,6 +264,8 @@ ascii-art/
 |   |   `-- interactive_test.go
 |   |-- output/
 |   |   |-- print.go
+|   |   |-- write.go
+|   |   |-- write_file.go
 |   |   `-- print_test.go
 |   `-- renderer/
 |       |-- build.go
@@ -229,79 +283,42 @@ ascii-art/
 |   |-- prd.md
 |   |-- workFlow.md
 |   `-- tasks/
+|       |-- task01_cli_alignment.md
+|       |-- task02_structured_renderer.md
+|       `-- task03_output_alignment_integration.md
 |-- go.mod
-|-- agent_log.md
-|-- to_study.md
 `-- README.md
 ```
 
 ## Architecture
 
-The program follows a small pipeline:
+Current pipeline:
 
 ```text
 CLI input
 -> banner loading
 -> input normalization
--> color position detection
 -> ASCII rendering
--> output printing
+-> output printing or file writing
+```
+
+Alignment target pipeline:
+
+```text
+CLI input
+-> banner loading
+-> input normalization
+-> structured ASCII rendering
+-> aligned terminal/file output
 ```
 
 Package responsibilities:
 
 - `internal/cli`: chooses interactive or argument mode and validates user input
 - `internal/banner`: loads banner files into `map[rune][]string`
-- `internal/renderer`: normalizes input, validates color values, finds colored positions, and builds ASCII-art rows
-- `internal/output`: prints final rows to standard output
-- `main.go`: connects the packages and keeps the interactive loop minimal
-
-## Banner Format
-
-Each banner file contains printable ASCII characters from 32 to 126.
-
-Each character block contains:
-
-- 1 separator line
-- 8 visible art lines
-- 9 total lines
-
-The loader maps every character into:
-
-```go
-map[rune][]string
-```
-
-Each rune maps to exactly 8 strings.
-
-The loader also normalizes CRLF line endings, which keeps `thinkertoy.txt` rendering correctly across environments.
-
-## Error Handling
-
-Interactive mode:
-
-- empty text is rejected with `No valid string input`
-- invalid banner choices are rejected with `Invalid banner choice`
-- empty color input means no color
-- empty substring input after a color means the whole rendered string is colored
-- invalid color values print the rendering error and return to the text prompt
-- `/exit` exits cleanly
-
-Argument mode:
-
-- missing text returns an error
-- empty text returns an error
-- invalid banner names return an error
-- too many arguments return an error
-
-Rendering:
-
-- unsupported characters return an error
-- invalid color names return `Invalid color name`
-- invalid hexadecimal color codes return `Invalid hexadecimal color code`
-- invalid RGB color codes return `Invalid RGB color code`
-- invalid HSL color codes return `Invalid HSL color code`
-- invalid or missing banner files return an error
+- `internal/renderer`: normalizes input, validates color values, finds colored positions, and builds ASCII-art
+- `internal/output`: prints, writes files, and will own alignment
+- `main.go`: connects the packages
 
 ## Testing
 
@@ -311,17 +328,18 @@ Run all tests:
 go test ./...
 ```
 
-The tests cover:
+Current tests cover:
 
 - banner loading and invalid banner formats
 - CRLF banner line endings
 - CLI argument mode
 - CLI interactive mode
+- order-flexible color and output options
 - escaped newline normalization
 - ASCII row building
 - color name, hexadecimal, RGB, and HSL validation
 - substring position matching for color rendering
-- output printing
+- output printing and file writing
 
 Additional edge cases are documented in:
 
@@ -335,4 +353,5 @@ internal/cli/test_cases.md
 - Custom banner file paths are not accepted from user input.
 - Numeric banner choices are only used in interactive mode.
 - Unicode characters outside the printable ASCII banner range are not supported.
-- Alignment, resizing, and file export are not implemented.
+- Alignment is designed but not yet implemented.
+- Resizing and scaling are not implemented.

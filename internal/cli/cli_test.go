@@ -144,6 +144,20 @@ func TestRunArgumentMode(t *testing.T) {
 			wantSubstring: "world",
 		},
 		{
+			name:       "color flag after text colors whole string",
+			args:       []string{"ascii-art", "hello", "--color=red"},
+			wantText:   "hello",
+			wantBanner: "banners/standard.txt",
+			wantColor:  "red",
+		},
+		{
+			name:       "color flag between text and banner colors whole string",
+			args:       []string{"ascii-art", "hello", "--color=red", "shadow"},
+			wantText:   "hello",
+			wantBanner: "banners/shadow.txt",
+			wantColor:  "red",
+		},
+		{
 			name:       "banner compatible hex color",
 			args:       []string{"ascii-art", "hello", "standard", "--color=#ffaa00"},
 			wantText:   "hello",
@@ -223,11 +237,6 @@ func TestRunArgumentMode(t *testing.T) {
 		{
 			name:    "multiple color flags in banner compatible form are invalid",
 			args:    []string{"ascii-art", "hello", "standard", "--color=red", "--color=blue"},
-			wantErr: ColorUsageMessage,
-		},
-		{
-			name:    "color flag in unsupported position is invalid",
-			args:    []string{"ascii-art", "hello", "--color=red"},
 			wantErr: ColorUsageMessage,
 		},
 		{
@@ -369,6 +378,26 @@ func TestRunArgumentModeOptions(t *testing.T) {
 			},
 		},
 		{
+			name: "output flag after text is valid",
+			args: []string{"ascii-art", "hello", "--output=banner.txt"},
+			want: Options{
+				Text:       "hello",
+				BannerPath: "banners/standard.txt",
+				OutputFile: "banner.txt",
+			},
+		},
+		{
+			name: "output and color flags can appear after banner",
+			args: []string{"ascii-art", "hello world", "shadow", "--output=banner.txt", "--color=cyan", "world"},
+			want: Options{
+				Text:       "hello world",
+				BannerPath: "banners/shadow.txt",
+				Color:      "cyan",
+				Substring:  "world",
+				OutputFile: "banner.txt",
+			},
+		},
+		{
 			name:    "separated output flag is invalid",
 			args:    []string{"ascii-art", "--output", "hello"},
 			wantErr: OutputUsageMessage,
@@ -396,11 +425,6 @@ func TestRunArgumentModeOptions(t *testing.T) {
 		{
 			name:    "output flag without text is invalid",
 			args:    []string{"ascii-art", "--output=banner.txt"},
-			wantErr: OutputUsageMessage,
-		},
-		{
-			name:    "output flag outside first position is invalid",
-			args:    []string{"ascii-art", "hello", "--output=banner.txt"},
 			wantErr: OutputUsageMessage,
 		},
 		{
