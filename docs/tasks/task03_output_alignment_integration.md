@@ -28,6 +28,7 @@ Recommended first implementation:
 - Read `COLUMNS` from the environment.
 - If `COLUMNS` is missing, invalid, or less than 1, fall back to `80`.
 - Keep width detection at the edge of the output package so unit tests can pass explicit widths.
+- File output uses the current terminal width at the time the command runs; the program does not try to predict the width of a future text editor or viewer.
 
 Suggested API shape:
 

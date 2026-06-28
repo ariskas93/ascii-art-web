@@ -25,6 +25,12 @@ func printOutputPrompt(out io.Writer) {
 	fmt.Fprint(out, "Write output to a file? (y/N, /exit to quit): ")
 }
 
+func printAlignmentPrompt(out io.Writer) {
+	fmt.Fprintln(out, "Enter alignment: left, center, right, justify")
+	fmt.Fprintln(out, "Press Enter for left (/exit to quit)")
+	fmt.Fprint(out, "Alignment: ")
+}
+
 var interactiveReader *bufio.Reader
 var interactiveReaderSource *os.File
 
@@ -128,6 +134,7 @@ func collectInteractiveOptions(reader *bufio.Reader, out io.Writer, askOutput bo
 		Text:       text,
 		BannerPath: bannerPath,
 		Color:      color,
+		Align:      defaultAlign,
 	}
 
 	if color == "" {
@@ -155,6 +162,13 @@ func finishInteractiveOptions(reader *bufio.Reader, out io.Writer, opts Options,
 		return opts, false, nil
 	}
 
+	var exit bool
+	var err error
+	opts, exit, err = readInteractiveAlignment(reader, out, opts)
+	if err != nil || exit {
+		return opts, exit, err
+	}
+
 	for {
 		printOutputPrompt(out)
 
@@ -175,6 +189,31 @@ func finishInteractiveOptions(reader *bufio.Reader, out io.Writer, opts Options,
 			return Options{}, true, nil
 		default:
 			fmt.Fprintln(out, "Invalid output choice")
+		}
+	}
+}
+
+func readInteractiveAlignment(reader *bufio.Reader, out io.Writer, opts Options) (Options, bool, error) {
+	for {
+		printAlignmentPrompt(out)
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return Options{}, true, err
+		}
+
+		align := strings.TrimSpace(input)
+		switch {
+		case align == "":
+			opts.Align = defaultAlign
+			return opts, false, nil
+		case align == "/exit":
+			return Options{}, true, nil
+		case isValidAlign(align):
+			opts.Align = align
+			return opts, false, nil
+		default:
+			fmt.Fprintln(out, "Invalid alignment choice")
 		}
 	}
 }

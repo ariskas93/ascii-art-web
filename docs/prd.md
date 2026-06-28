@@ -98,6 +98,27 @@ go run . --align center "hello"
 go run . --align= "hello"
 go run . -align=center "hello"
 go run . --alignment=center "hello"
+go run . --align=CENTER "hello"
+```
+
+Alignment values are case-sensitive and must be lowercase.
+
+Valid:
+
+```text
+--align=left
+--align=center
+--align=right
+--align=justify
+```
+
+Invalid:
+
+```text
+--align=Left
+--align=CENTER
+--align=RIGHT
+--align=Justify
 ```
 
 ### Positional Arguments
@@ -181,7 +202,33 @@ Invalid alignment option format:
 ```text
 Usage: go run . [OPTION] [STRING] [BANNER]
 
-EX: go run . --align=<left|center|right|justify> something standard
+EX: go run . --align=<left|center|right|justify> "something" standard
+```
+
+Unknown option format:
+
+```text
+Usage: go run . [OPTION] [STRING] [BANNER]
+
+OPTIONS:
+--color=<color>
+--output=<fileName.txt>
+--align=<left|center|right|justify>
+
+EX:
+go run . --color=red "hello"
+go run . --output=out.txt "hello" standard
+go run . --align=center "hello" standard
+```
+
+Invalid banner format:
+
+```text
+Invalid banner: <banner>
+
+Usage: go run . [STRING] [BANNER]
+
+EX: go run . something standard
 ```
 
 ---
@@ -237,7 +284,7 @@ Meanings:
 - `Color == ""` means no color
 - `Substring == ""` with a color means color the whole string
 - `OutputFile == ""` means print to terminal
-- `Align == ""` or `Align == "left"` means left alignment
+- `Align == "left"` is the default alignment
 
 ---
 
@@ -348,6 +395,8 @@ Terminal width detection:
 - read `COLUMNS`
 - fallback to `80` when missing or invalid
 - unit-test alignment through width-explicit functions
+
+When writing aligned output to a file, alignment is still calculated using the current terminal width at the time the command runs. The program does not try to detect or predict the width of the editor, terminal, or viewer that will open the file later.
 
 Visible width must ignore ANSI escape sequences.
 

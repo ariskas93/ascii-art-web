@@ -165,6 +165,12 @@ func TestRunArgumentMode(t *testing.T) {
 			wantColor:  "#ffaa00",
 		},
 		{
+			name:       "alignment flag is accepted in tuple mode",
+			args:       []string{"ascii-art", "--align=center", "hello"},
+			wantText:   "hello",
+			wantBanner: "banners/standard.txt",
+		},
+		{
 			name:    "missing text",
 			args:    []string{"ascii-art"},
 			wantErr: UsageMessage,
@@ -182,12 +188,12 @@ func TestRunArgumentMode(t *testing.T) {
 		{
 			name:    "invalid banner name",
 			args:    []string{"ascii-art", "hello", "unknown"},
-			wantErr: UsageMessage,
+			wantErr: invalidBannerMessage("unknown"),
 		},
 		{
 			name:    "numeric banner is invalid in argument mode",
 			args:    []string{"ascii-art", "hello", "1"},
-			wantErr: UsageMessage,
+			wantErr: invalidBannerMessage("1"),
 		},
 		{
 			name:    "too many plain arguments",
@@ -252,7 +258,7 @@ func TestRunArgumentMode(t *testing.T) {
 		{
 			name:    "invalid banner in banner compatible color form is invalid",
 			args:    []string{"ascii-art", "hello", "unknown", "--color=red"},
-			wantErr: UsageMessage,
+			wantErr: invalidBannerMessage("unknown"),
 		},
 		{
 			name:    "color form with too many arguments is invalid",
@@ -316,6 +322,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 			want: Options{
 				Text:       "hello",
 				BannerPath: "banners/standard.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -325,6 +332,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 				Text:       "hello",
 				BannerPath: "banners/standard.txt",
 				OutputFile: "banner.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -334,6 +342,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 				Text:       "hello",
 				BannerPath: "banners/standard.txt",
 				OutputFile: "banner.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -343,6 +352,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 				Text:       "hello",
 				BannerPath: "banners/shadow.txt",
 				OutputFile: "banner.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -353,6 +363,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 				BannerPath: "banners/standard.txt",
 				Color:      "red",
 				OutputFile: "banner.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -364,6 +375,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 				Color:      "red",
 				Substring:  "kit",
 				OutputFile: "banner.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -375,6 +387,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 				Color:      "cyan",
 				Substring:  "world",
 				OutputFile: "banner.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -384,6 +397,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 				Text:       "hello",
 				BannerPath: "banners/standard.txt",
 				OutputFile: "banner.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -395,6 +409,7 @@ func TestRunArgumentModeOptions(t *testing.T) {
 				Color:      "cyan",
 				Substring:  "world",
 				OutputFile: "banner.txt",
+				Align:      defaultAlign,
 			},
 		},
 		{
@@ -440,7 +455,151 @@ func TestRunArgumentModeOptions(t *testing.T) {
 		{
 			name:    "invalid banner with output keeps general usage",
 			args:    []string{"ascii-art", "--output=banner.txt", "hello", "unknown"},
+			wantErr: invalidBannerMessage("unknown"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := RunArgumentModeOptions(tt.args)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if err.Error() != tt.wantErr {
+					t.Fatalf("error = %q, want %q", err.Error(), tt.wantErr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("options = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRunArgumentModeOptionsAlignment(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		want    Options
+		wantErr string
+	}{
+		{
+			name: "left alignment",
+			args: []string{"ascii-art", "--align=left", "hello"},
+			want: Options{
+				Text:       "hello",
+				BannerPath: "banners/standard.txt",
+				Align:      "left",
+			},
+		},
+		{
+			name: "center alignment before text",
+			args: []string{"ascii-art", "--align=center", "hello"},
+			want: Options{
+				Text:       "hello",
+				BannerPath: "banners/standard.txt",
+				Align:      "center",
+			},
+		},
+		{
+			name: "right alignment after text",
+			args: []string{"ascii-art", "hello", "--align=right"},
+			want: Options{
+				Text:       "hello",
+				BannerPath: "banners/standard.txt",
+				Align:      "right",
+			},
+		},
+		{
+			name: "justify alignment after banner",
+			args: []string{"ascii-art", "hello world", "shadow", "--align=justify"},
+			want: Options{
+				Text:       "hello world",
+				BannerPath: "banners/shadow.txt",
+				Align:      "justify",
+			},
+		},
+		{
+			name: "alignment with output",
+			args: []string{"ascii-art", "--output=banner.txt", "--align=center", "hello"},
+			want: Options{
+				Text:       "hello",
+				BannerPath: "banners/standard.txt",
+				OutputFile: "banner.txt",
+				Align:      "center",
+			},
+		},
+		{
+			name: "alignment with color substring",
+			args: []string{"ascii-art", "--color=cyan", "ll", "hello", "--align=center"},
+			want: Options{
+				Text:       "hello",
+				BannerPath: "banners/standard.txt",
+				Color:      "cyan",
+				Substring:  "ll",
+				Align:      "center",
+			},
+		},
+		{
+			name:    "separated alignment flag is invalid",
+			args:    []string{"ascii-art", "--align", "center", "hello"},
+			wantErr: AlignUsageMessage,
+		},
+		{
+			name:    "empty alignment value is invalid",
+			args:    []string{"ascii-art", "--align=", "hello"},
+			wantErr: AlignUsageMessage,
+		},
+		{
+			name:    "short alignment flag is invalid",
+			args:    []string{"ascii-art", "-align=center", "hello"},
+			wantErr: AlignUsageMessage,
+		},
+		{
+			name:    "long alignment spelling is invalid",
+			args:    []string{"ascii-art", "--alignment=center", "hello"},
+			wantErr: AlignUsageMessage,
+		},
+		{
+			name:    "unsupported alignment value is invalid",
+			args:    []string{"ascii-art", "--align=middle", "hello"},
+			wantErr: AlignUsageMessage,
+		},
+		{
+			name:    "uppercase alignment value is invalid",
+			args:    []string{"ascii-art", "--align=CENTER", "hello"},
+			wantErr: AlignUsageMessage,
+		},
+		{
+			name:    "duplicate alignment flags are invalid",
+			args:    []string{"ascii-art", "--align=center", "--align=right", "hello"},
+			wantErr: AlignUsageMessage,
+		},
+		{
+			name:    "unknown option with value shows option usage",
+			args:    []string{"ascii-art", "--banana=yes", "hello"},
+			wantErr: OptionUsageMessage,
+		},
+		{
+			name:    "unknown option without value shows option usage",
+			args:    []string{"ascii-art", "--banana", "hello"},
+			wantErr: OptionUsageMessage,
+		},
+		{
+			name:    "valid alignment without text returns general usage",
+			args:    []string{"ascii-art", "--align=center"},
 			wantErr: UsageMessage,
+		},
+		{
+			name:    "valid alignment with invalid banner returns banner error",
+			args:    []string{"ascii-art", "--align=center", "hello", "unknown"},
+			wantErr: invalidBannerMessage("unknown"),
 		},
 	}
 
@@ -502,6 +661,7 @@ func TestPickModeOptionsUsesArgumentMode(t *testing.T) {
 		BannerPath: "banners/standard.txt",
 		Color:      "#ff0000",
 		OutputFile: "banner.txt",
+		Align:      defaultAlign,
 	}
 	if opts != want {
 		t.Fatalf("options = %+v, want %+v", opts, want)

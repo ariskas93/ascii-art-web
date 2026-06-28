@@ -21,6 +21,16 @@
 | EOF before text         | returns an error and `exit=true`      |
 | EOF before banner       | returns an error and `exit=true`      |
 
+## Options-Aware Interactive Mode
+
+| Input sequence | Expected |
+| --- | --- |
+| `hello` + `1` + empty color + empty alignment + empty output choice | text=`hello`, standard path, align=`left`, terminal output |
+| `hello` + `1` + empty color + `center` + empty output choice | align=`center` |
+| `hello` + `1` + empty color + `middle` + `right` + `n` | retry alignment once, then align=`right` |
+| `hello` + `1` + empty color + `/exit` | `exit=true` at alignment prompt |
+| `hello` + `1` + empty color + empty alignment + `y` + `banner.txt` | output file=`banner.txt`, align=`left` |
+
 ## Argument Mode
 
 | Args                                    | Expected                    |
@@ -50,8 +60,8 @@
 | `["ascii-art", "hello", "--output=banner.txt"]` | standard path, output file=`banner.txt` |
 | `["ascii-art", "hello world", "shadow", "--output=banner.txt", "--color=cyan", "world"]` | shadow path, color=`cyan`, substring=`world`, output file=`banner.txt` |
 | `["ascii-art", ""]`                    | empty text error            |
-| `["ascii-art", "hello", "unknown"]`    | invalid banner error        |
-| `["ascii-art", "hello", "1"]`          | invalid banner error        |
+| `["ascii-art", "hello", "unknown"]`    | `Invalid banner: unknown` + usage |
+| `["ascii-art", "hello", "1"]`          | `Invalid banner: 1` + usage |
 | `["ascii-art", "hello", "standard", "extra"]` | too many args error |
 | `["ascii-art", "--color", "red", "banana"]` | color usage error |
 | `["ascii-art", "--color=", "banana"]` | color usage error |
@@ -61,11 +71,11 @@
 | `["ascii-art", "--color=red"]` | color usage error |
 | `["ascii-art", "--color=red", "--color=blue", "hello"]` | color usage error |
 | `["ascii-art", "hello", "standard", "--color=red", "--color=blue"]` | color usage error |
-| `["ascii-art", "hello", "unknown", "--color=red"]` | invalid banner error |
+| `["ascii-art", "hello", "unknown", "--color=red"]` | `Invalid banner: unknown` + usage |
 | `["ascii-art", "--color=rgb,255,", "0,", "0", "hello"]` | color usage error |
 | `["ascii-art", "--color=hsl,0,", "100%,", "50%", "hello"]` | color usage error |
 
-## Planned Alignment Argument Cases
+## Alignment Argument Cases
 
 | Args | Expected |
 | --- | --- |
@@ -80,7 +90,12 @@
 | `["ascii-art", "-align=center", "hello"]` | alignment usage error |
 | `["ascii-art", "--alignment=center", "hello"]` | alignment usage error |
 | `["ascii-art", "--align=middle", "hello"]` | alignment usage error |
+| `["ascii-art", "--align=CENTER", "hello"]` | alignment usage error |
 | `["ascii-art", "--align=left", "--align=right", "hello"]` | alignment usage error |
+| `["ascii-art", "--banana=yes", "hello"]` | supported-options usage error |
+| `["ascii-art", "--banana", "hello"]` | supported-options usage error |
+| `["ascii-art", "--align=center"]` | general usage error |
+| `["ascii-art", "--align=center", "hello", "unknown"]` | `Invalid banner: unknown` + usage |
 
 ## Mode Picker
 

@@ -38,7 +38,7 @@ type Options struct {
 }
 ```
 
-`Align == ""` or `Align == "left"` means default left alignment.
+`Align == "left"` means default left alignment.
 
 Accepted values:
 
@@ -55,8 +55,10 @@ justify
 - Options must use `--name=value` form.
 - Supported option names are `--color=`, `--output=`, and `--align=`.
 - Invalid spellings such as `-align=right`, `--alignment=right`, `--align right`, and `--align=` must be rejected.
+- Alignment values are lowercase-only; values such as `Left`, `CENTER`, `RIGHT`, and `Justify` must be rejected.
 - Duplicate alignment flags must be rejected.
-- Unknown `--...` flags must be rejected.
+- Unknown `--...` flags must be rejected with the general supported-options message.
+- Invalid banner names must mention the invalid banner value before the general usage message.
 - Positional text and banner behavior must stay compatible with the current parser.
 - A color substring remains positional and is recognized only when it appears immediately after `--color=<color>`.
 
@@ -67,7 +69,23 @@ For invalid alignment option formats, use:
 ```text
 Usage: go run . [OPTION] [STRING] [BANNER]
 
-EX: go run . --align=<left|center|right|justify> something standard
+EX: go run . --align=<left|center|right|justify> "something" standard
+```
+
+For unknown option flags, use:
+
+```text
+Usage: go run . [OPTION] [STRING] [BANNER]
+
+OPTIONS:
+--color=<color>
+--output=<fileName.txt>
+--align=<left|center|right|justify>
+
+EX:
+go run . --color=red "hello"
+go run . --output=out.txt "hello" standard
+go run . --align=center "hello" standard
 ```
 
 ## Interactive Mode

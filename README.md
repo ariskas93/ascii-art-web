@@ -12,7 +12,7 @@ The current implementation supports:
 - output files with `--output=<file>`
 - printable ASCII characters supported by the banner files
 
-The active project objective is to add alignment:
+The active project objective is to add alignment. The CLI alignment option is part of Task 01, while the renderer and output packages still need Task 02 and Task 03 to make alignment affect the final visual output:
 
 ```bash
 go run . --align=left "Hello"
@@ -197,7 +197,7 @@ ANSI color codes are preserved in file output.
 
 ## Alignment Objective
 
-Alignment is the next implementation target.
+Alignment is the active implementation target. The CLI can parse alignment options once Task 01 is complete; visual alignment depends on the structured renderer and output work in Task 02 and Task 03.
 
 Planned syntax:
 

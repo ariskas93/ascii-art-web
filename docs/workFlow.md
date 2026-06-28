@@ -37,7 +37,7 @@ type Options struct {
 }
 ```
 
-`Align == ""` or `Align == "left"` means left alignment.
+`Align == "left"` means left alignment.
 
 Accepted alignment values:
 
@@ -155,5 +155,5 @@ go run . --output=aligned.txt --align=right "hello" standard
 ```text
 Usage: go run . [OPTION] [STRING] [BANNER]
 
-EX: go run . --align=<left|center|right|justify> something standard
+EX: go run . --align=<left|center|right|justify> "something" standard
 ```

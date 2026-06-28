@@ -23,8 +23,10 @@ These edge cases describe the expected behavior at the package boundaries. Keep 
 | CLI color mode | Multiple color flags | A command containing two `--color=<color>` flags is invalid | `internal/cli/cli_test.go` |
 | CLI color mode | Order-flexible whole-string color | `"hello" --color=red` returns text `hello`, color `red`, and an empty substring | `internal/cli/cli_test.go` |
 | CLI output mode | Order-flexible output flag | `"hello" --output=out.txt` returns text `hello` and output file `out.txt` | `internal/cli/cli_test.go` |
-| CLI alignment mode | Valid alignment values | Planned: `--align=left`, `--align=center`, `--align=right`, and `--align=justify` return the selected alignment | `internal/cli/cli_test.go` |
-| CLI alignment mode | Invalid alignment formats | Planned: separated, empty, misspelled, unsupported, and duplicate alignment flags return the exact alignment usage message | `internal/cli/cli_test.go` |
+| CLI alignment mode | Valid alignment values | `--align=left`, `--align=center`, `--align=right`, and `--align=justify` return the selected alignment | `internal/cli/cli_test.go` |
+| CLI alignment mode | Invalid alignment formats | Separated, empty, misspelled, uppercase, unsupported, and duplicate alignment flags return the exact alignment usage message | `internal/cli/cli_test.go` |
+| CLI option mode | Unknown options | Unknown `--...` flags return the supported-options usage message | `internal/cli/cli_test.go` |
+| CLI banner mode | Invalid banner value | Invalid banner names return `Invalid banner: <value>` followed by the general usage message | `internal/cli/cli_test.go` |
 | CLI color mode | Shell-split RGB/HSL | Split color values such as `--color=rgb,255, 0, 0` are invalid argument formats | `internal/cli/cli_test.go` |
 | CLI interactive mode | Windows-style user input | `\r\n` input is trimmed correctly at prompts | `internal/cli/interactive_test.go` |
 | Renderer normalization | Leading escaped newline | `\nHello` becomes `["", "Hello"]` | `internal/renderer/normalize_test.go` |

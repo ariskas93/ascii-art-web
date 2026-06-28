@@ -322,7 +322,7 @@ func TestRunInteractivePreservesSubstringSpaces(t *testing.T) {
 func TestRunInteractiveOptionsDefaultPrintsToTerminal(t *testing.T) {
 	var out bytes.Buffer
 
-	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\n"), &out)
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\n\n"), &out)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -333,6 +333,7 @@ func TestRunInteractiveOptionsDefaultPrintsToTerminal(t *testing.T) {
 	want := Options{
 		Text:       "hello",
 		BannerPath: "banners/standard.txt",
+		Align:      defaultAlign,
 	}
 	if opts != want {
 		t.Fatalf("options = %+v, want %+v", opts, want)
@@ -345,7 +346,7 @@ func TestRunInteractiveOptionsDefaultPrintsToTerminal(t *testing.T) {
 func TestRunInteractiveOptionsNoOutputFile(t *testing.T) {
 	var out bytes.Buffer
 
-	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n2\n\nno\n"), &out)
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n2\n\n\nno\n"), &out)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -356,16 +357,65 @@ func TestRunInteractiveOptionsNoOutputFile(t *testing.T) {
 	want := Options{
 		Text:       "hello",
 		BannerPath: "banners/shadow.txt",
+		Align:      defaultAlign,
 	}
 	if opts != want {
 		t.Fatalf("options = %+v, want %+v", opts, want)
 	}
 }
 
+func TestRunInteractiveOptionsAlignment(t *testing.T) {
+	var out bytes.Buffer
+
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\ncenter\n\n"), &out)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if exit {
+		t.Fatal("exit = true, want false")
+	}
+
+	want := Options{
+		Text:       "hello",
+		BannerPath: "banners/standard.txt",
+		Align:      "center",
+	}
+	if opts != want {
+		t.Fatalf("options = %+v, want %+v", opts, want)
+	}
+	if !strings.Contains(out.String(), "Enter alignment") {
+		t.Fatalf("expected alignment prompt in output, got %q", out.String())
+	}
+}
+
+func TestRunInteractiveOptionsRetriesInvalidAlignment(t *testing.T) {
+	var out bytes.Buffer
+
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\nmiddle\nright\nn\n"), &out)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if exit {
+		t.Fatal("exit = true, want false")
+	}
+
+	want := Options{
+		Text:       "hello",
+		BannerPath: "banners/standard.txt",
+		Align:      "right",
+	}
+	if opts != want {
+		t.Fatalf("options = %+v, want %+v", opts, want)
+	}
+	if !strings.Contains(out.String(), "Invalid alignment choice") {
+		t.Fatalf("expected invalid alignment warning in output, got %q", out.String())
+	}
+}
+
 func TestRunInteractiveOptionsOutputFile(t *testing.T) {
 	var out bytes.Buffer
 
-	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\ny\nbanner.txt\n"), &out)
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\ny\nbanner.txt\n"), &out)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -377,6 +427,7 @@ func TestRunInteractiveOptionsOutputFile(t *testing.T) {
 		Text:       "hello",
 		BannerPath: "banners/standard.txt",
 		OutputFile: "banner.txt",
+		Align:      defaultAlign,
 	}
 	if opts != want {
 		t.Fatalf("options = %+v, want %+v", opts, want)
@@ -389,7 +440,7 @@ func TestRunInteractiveOptionsOutputFile(t *testing.T) {
 func TestRunInteractiveOptionsColorSubstringOutputFile(t *testing.T) {
 	var out bytes.Buffer
 
-	opts, exit, err := runInteractiveOptions(strings.NewReader("hello world\n2\ncyan\nworld\ny\nbanner.txt\n"), &out)
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello world\n2\ncyan\nworld\n\ny\nbanner.txt\n"), &out)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -403,6 +454,7 @@ func TestRunInteractiveOptionsColorSubstringOutputFile(t *testing.T) {
 		Color:      "cyan",
 		Substring:  "world",
 		OutputFile: "banner.txt",
+		Align:      defaultAlign,
 	}
 	if opts != want {
 		t.Fatalf("options = %+v, want %+v", opts, want)
@@ -412,7 +464,7 @@ func TestRunInteractiveOptionsColorSubstringOutputFile(t *testing.T) {
 func TestRunInteractiveOptionsRetriesInvalidOutputChoice(t *testing.T) {
 	var out bytes.Buffer
 
-	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\nmaybe\nn\n"), &out)
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\nmaybe\nn\n"), &out)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -430,7 +482,7 @@ func TestRunInteractiveOptionsRetriesInvalidOutputChoice(t *testing.T) {
 func TestRunInteractiveOptionsRetriesEmptyOutputFile(t *testing.T) {
 	var out bytes.Buffer
 
-	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\ny\n\nbanner.txt\n"), &out)
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\ny\n\nbanner.txt\n"), &out)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -445,7 +497,7 @@ func TestRunInteractiveOptionsRetriesEmptyOutputFile(t *testing.T) {
 	}
 }
 
-func TestRunInteractiveOptionsExitAtOutputPrompt(t *testing.T) {
+func TestRunInteractiveOptionsExitAtAlignmentPrompt(t *testing.T) {
 	var out bytes.Buffer
 
 	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n/exit\n"), &out)
@@ -460,10 +512,10 @@ func TestRunInteractiveOptionsExitAtOutputPrompt(t *testing.T) {
 	}
 }
 
-func TestRunInteractiveOptionsExitAtOutputFilePrompt(t *testing.T) {
+func TestRunInteractiveOptionsExitAtOutputPrompt(t *testing.T) {
 	var out bytes.Buffer
 
-	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\ny\n/exit\n"), &out)
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\n/exit\n"), &out)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -475,7 +527,22 @@ func TestRunInteractiveOptionsExitAtOutputFilePrompt(t *testing.T) {
 	}
 }
 
-func TestRunInteractiveOptionsReturnsErrorOnEOFBeforeOutputChoice(t *testing.T) {
+func TestRunInteractiveOptionsExitAtOutputFilePrompt(t *testing.T) {
+	var out bytes.Buffer
+
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\ny\n/exit\n"), &out)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !exit {
+		t.Fatal("exit = false, want true")
+	}
+	if opts != (Options{}) {
+		t.Fatalf("options = %+v, want empty", opts)
+	}
+}
+
+func TestRunInteractiveOptionsReturnsErrorOnEOFBeforeAlignment(t *testing.T) {
 	var out bytes.Buffer
 
 	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n"), &out)
@@ -493,10 +560,28 @@ func TestRunInteractiveOptionsReturnsErrorOnEOFBeforeOutputChoice(t *testing.T) 
 	}
 }
 
+func TestRunInteractiveOptionsReturnsErrorOnEOFBeforeOutputChoice(t *testing.T) {
+	var out bytes.Buffer
+
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\n"), &out)
+	if err == nil {
+		t.Fatal("expected EOF error, got nil")
+	}
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("err = %v, want EOF", err)
+	}
+	if !exit {
+		t.Fatal("exit = false, want true")
+	}
+	if opts != (Options{}) {
+		t.Fatalf("options = %+v, want empty", opts)
+	}
+}
+
 func TestRunInteractiveOptionsReturnsErrorOnEOFBeforeOutputFile(t *testing.T) {
 	var out bytes.Buffer
 
-	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\ny\n"), &out)
+	opts, exit, err := runInteractiveOptions(strings.NewReader("hello\n1\n\n\ny\n"), &out)
 	if err == nil {
 		t.Fatal("expected EOF error, got nil")
 	}

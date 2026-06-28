@@ -17,7 +17,24 @@ const OutputUsageMessage = `Usage: go run . [OPTION] [STRING] [BANNER]
 
 EX: go run . --output=<fileName.txt> something standard`
 
+const AlignUsageMessage = `Usage: go run . [OPTION] [STRING] [BANNER]
+
+EX: go run . --align=<left|center|right|justify> "something" standard`
+
+const OptionUsageMessage = `Usage: go run . [OPTION] [STRING] [BANNER]
+
+OPTIONS:
+--color=<color>
+--output=<fileName.txt>
+--align=<left|center|right|justify>
+
+EX:
+go run . --color=red "hello"
+go run . --output=out.txt "hello" standard
+go run . --align=center "hello" standard`
+
 const defaultBannerPath = "banners/standard.txt"
+const defaultAlign = "left"
 
 type Options struct {
 	Text       string
@@ -25,6 +42,7 @@ type Options struct {
 	Color      string
 	Substring  string
 	OutputFile string
+	Align      string
 }
 
 type positionalArg struct {
@@ -50,7 +68,10 @@ func parseFlexibleArguments(args []string, allowOutput bool) (Options, error) {
 		return Options{}, errors.New(UsageMessage)
 	}
 
-	opts := Options{BannerPath: defaultBannerPath}
+	opts := Options{
+		BannerPath: defaultBannerPath,
+		Align:      defaultAlign,
+	}
 	operands, colorIndex, err := collectOptions(args, allowOutput, &opts)
 	if err != nil {
 		return Options{}, err
@@ -68,6 +89,7 @@ func collectOptions(args []string, allowOutput bool, opts *Options) ([]positiona
 	colorIndex := -1
 	seenColor := false
 	seenOutput := false
+	seenAlign := false
 
 	for i := 1; i < len(args); i++ {
 		arg := args[i]
@@ -94,8 +116,18 @@ func collectOptions(args []string, allowOutput bool, opts *Options) ([]positiona
 			}
 			opts.OutputFile = outputFile
 			seenOutput = true
+		case isAlignSyntax(arg):
+			if seenAlign {
+				return nil, -1, errors.New(AlignUsageMessage)
+			}
+			align, err := parseAlignFlag(arg)
+			if err != nil {
+				return nil, -1, err
+			}
+			opts.Align = align
+			seenAlign = true
 		case strings.HasPrefix(arg, "--"):
-			return nil, -1, errors.New(UsageMessage)
+			return nil, -1, errors.New(OptionUsageMessage)
 		default:
 			operands = append(operands, positionalArg{
 				value: arg,
@@ -222,6 +254,27 @@ func parseOutputFlag(flag string) (string, error) {
 	return outputFile, nil
 }
 
+func parseAlignFlag(flag string) (string, error) {
+	if !strings.HasPrefix(flag, "--align=") {
+		return "", errors.New(AlignUsageMessage)
+	}
+
+	align := strings.TrimPrefix(flag, "--align=")
+	if isValidAlign(align) {
+		return align, nil
+	}
+	return "", errors.New(AlignUsageMessage)
+}
+
+func isValidAlign(align string) bool {
+	switch align {
+	case "left", "center", "right", "justify":
+		return true
+	default:
+		return false
+	}
+}
+
 func isOutputSyntax(arg string) bool {
 	return arg == "--output" ||
 		strings.HasPrefix(arg, "--output=") ||
@@ -236,6 +289,13 @@ func isColorSyntax(arg string) bool {
 		strings.HasPrefix(arg, "--colour=")
 }
 
+func isAlignSyntax(arg string) bool {
+	return arg == "--align" ||
+		strings.HasPrefix(arg, "--align=") ||
+		strings.HasPrefix(arg, "-align=") ||
+		strings.HasPrefix(arg, "--alignment=")
+}
+
 func normalizeBannerArg(banner string) (string, error) {
 	switch banner {
 	case "standard", "standard.txt":
@@ -245,6 +305,10 @@ func normalizeBannerArg(banner string) (string, error) {
 	case "thinkertoy", "thinkertoy.txt":
 		return "banners/thinkertoy.txt", nil
 	default:
-		return "", errors.New(UsageMessage)
+		return "", errors.New(invalidBannerMessage(banner))
 	}
+}
+
+func invalidBannerMessage(banner string) string {
+	return "Invalid banner: " + banner + "\n\n" + UsageMessage
 }
