@@ -45,3 +45,52 @@ func TestVisibleWidth(t *testing.T) {
 		})
 	}
 }
+
+func TestTerminalWidth(t *testing.T) {
+	tests := []struct {
+		name     string
+		envValue string
+		want     int
+	}{
+		{
+			name:     "valid columns",
+			envValue: "120",
+			want:     120,
+		},
+		{
+			name:     "default width value",
+			envValue: "80",
+			want:     80,
+		},
+		{
+			name:     "non numeric falls back",
+			envValue: "abc",
+			want:     80,
+		},
+		{
+			name:     "zero falls back",
+			envValue: "0",
+			want:     80,
+		},
+		{
+			name:     "negative falls back",
+			envValue: "-5",
+			want:     80,
+		},
+		{
+			name:     "empty columns falls back",
+			envValue: "",
+			want:     80,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("COLUMNS", tt.envValue)
+			got := terminalWidth()
+			if got != tt.want {
+				t.Fatalf("terminalWidth() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}

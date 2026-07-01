@@ -1,5 +1,10 @@
 package output
 
+import (
+	"os"
+	"strconv"
+)
+
 func visibleWidth(s string) int {
 	width := 0
 	for i := 0; i < len(s); i++ {
@@ -14,4 +19,16 @@ func visibleWidth(s string) int {
 		width++
 	}
 	return width
+}
+
+func terminalWidth() int {
+	value := os.Getenv("COLUMNS")
+	number, err := strconv.Atoi(value)
+	if err != nil {
+		return 80
+	}
+	if number < 1 {
+		return 80
+	}
+	return number
 }
