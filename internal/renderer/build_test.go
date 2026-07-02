@@ -31,8 +31,8 @@ func TestBuildASCII(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		if len(result) != 8 {
-			t.Errorf("expected 8 lines, got %d", len(result))
+		if len(Flatten(result)) != 8 {
+			t.Errorf("expected 8 lines, got %d", len(Flatten(result)))
 		}
 	})
 
@@ -41,8 +41,8 @@ func TestBuildASCII(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		if len(result) != 1 {
-			t.Errorf("expected 1 line, got %d", len(result))
+		if len(Flatten(result)) != 1 {
+			t.Errorf("expected 1 line, got %d", len(Flatten(result)))
 		}
 	})
 
@@ -58,8 +58,8 @@ func TestBuildASCII(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		if len(result) != 16 {
-			t.Errorf("expected 16 lines, got %d", len(result))
+		if len(Flatten(result)) != 16 {
+			t.Errorf("expected 16 lines, got %d", len(Flatten(result)))
 		}
 	})
 }
@@ -86,8 +86,8 @@ func TestBuildASCIICombinesCharactersHorizontally(t *testing.T) {
 		"A7B7",
 	}
 
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("BuildASCII result = %v, expected %v", result, expected)
+	if !reflect.DeepEqual(Flatten(result), expected) {
+		t.Fatalf("Flatten result = %v, expected %v", Flatten(result), expected)
 	}
 }
 
@@ -113,8 +113,75 @@ func TestBuildASCIIKeepsEmptyInputLines(t *testing.T) {
 		"A7",
 	}
 
-	if !reflect.DeepEqual(result, expected) {
-		t.Fatalf("BuildASCII result = %v, expected %v", result, expected)
+	if !reflect.DeepEqual(Flatten(result), expected) {
+		t.Fatalf("Flatten result = %v, expected %v", Flatten(result), expected)
+	}
+}
+
+func TestBuildASCIIProducesWordAndSpaceSegments(t *testing.T) {
+	banner := mockBanner()
+
+	result, err := BuildASCII([]string{"hi there"}, banner, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result) != 1 {
+		t.Fatalf("expected 1 line, got %d", len(result))
+	}
+
+	segments := result[0].Segments
+	if len(segments) != 3 {
+		t.Fatalf("expected 3 segments, got %d", len(segments))
+	}
+
+	if segments[0].Kind != SegmentWord || segments[0].Text != "hi" {
+		t.Errorf("segment 0 = %+v, expected word 'hi'", segments[0])
+	}
+	if segments[1].Kind != SegmentSpace || segments[1].Text != " " {
+		t.Errorf("segment 1 = %+v, expected space ' '", segments[1])
+	}
+	if segments[2].Kind != SegmentWord || segments[2].Text != "there" {
+		t.Errorf("segment 2 = %+v, expected word 'there'", segments[2])
+	}
+}
+
+func TestBuildASCIIPreservesMultipleSpaces(t *testing.T) {
+	banner := mockBanner()
+
+	result, err := BuildASCII([]string{"a   b"}, banner, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	segments := result[0].Segments
+	if len(segments) != 3 {
+		t.Fatalf("expected 3 segments, got %d", len(segments))
+	}
+
+	if segments[1].Kind != SegmentSpace || segments[1].Text != "   " {
+		t.Errorf("segment 1 = %+v, expected space run of 3", segments[1])
+	}
+}
+
+func TestBuildASCIIPreservesLeadingAndTrailingSpaces(t *testing.T) {
+	banner := mockBanner()
+
+	result, err := BuildASCII([]string{"  hi  "}, banner, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	segments := result[0].Segments
+	if len(segments) != 3 {
+		t.Fatalf("expected 3 segments, got %d", len(segments))
+	}
+
+	if segments[0].Kind != SegmentSpace || segments[0].Text != "  " {
+		t.Errorf("segment 0 = %+v, expected leading space run", segments[0])
+	}
+	if segments[2].Kind != SegmentSpace || segments[2].Text != "  " {
+		t.Errorf("segment 2 = %+v, expected trailing space run", segments[2])
 	}
 }
 
@@ -175,7 +242,7 @@ func TestBuildASCIIColorWholeString(t *testing.T) {
 
 	redCode := "\033[38;2;255;0;0m"
 
-	for i, row := range result {
+	for i, row := range Flatten(result) {
 		if !strings.Contains(row, redCode) {
 			t.Errorf("row %d missing hex ANSI color code: %q", i, row)
 		}
@@ -201,14 +268,40 @@ func TestBuildASCIIColorSubstring(t *testing.T) {
 	redCode := "\033[31m"
 	reset := "\033[0m"
 
-	for i, row := range result {
-		// A and C should appear without color codes
+	for i, row := range Flatten(result) {
 		if strings.Contains(row, redCode+"A") || strings.Contains(row, redCode+"C") {
 			t.Errorf("row %d: A or C should not be colored: %q", i, row)
 		}
-		// B should be wrapped in color codes
 		if !strings.Contains(row, redCode) || !strings.Contains(row, reset) {
 			t.Errorf("row %d: expected B to be colored: %q", i, row)
 		}
+	}
+}
+
+func TestFlattenReproducesFlatOutput(t *testing.T) {
+	banner := map[rune][]string{
+		'A': {"A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7"},
+		'B': {"B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7"},
+		' ': {"  ", "  ", "  ", "  ", "  ", "  ", "  ", "  "},
+	}
+
+	result, err := BuildASCII([]string{"A B"}, banner, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expected := []string{
+		"A0  B0",
+		"A1  B1",
+		"A2  B2",
+		"A3  B3",
+		"A4  B4",
+		"A5  B5",
+		"A6  B6",
+		"A7  B7",
+	}
+
+	if !reflect.DeepEqual(Flatten(result), expected) {
+		t.Fatalf("Flatten result = %v, expected %v", Flatten(result), expected)
 	}
 }

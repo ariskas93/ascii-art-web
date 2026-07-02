@@ -2,7 +2,7 @@ package renderer
 
 import "errors"
 
-func BuildASCII(lines []string, banner map[rune][]string, substring string, color string) ([]string, error) {
+func BuildASCII(lines []string, banner map[rune][]string, substring string, color string) (RenderedASCII, error) {
 	var colorCode string
 	if color != "" {
 		var err error
@@ -12,11 +12,11 @@ func BuildASCII(lines []string, banner map[rune][]string, substring string, colo
 		}
 	}
 
-	output := []string{}
+	var output RenderedASCII
 
 	for _, n := range lines {
 		if n == "" {
-			output = append(output, "")
+			output = append(output, RenderedLine{})
 			continue
 		}
 
@@ -25,24 +25,80 @@ func BuildASCII(lines []string, banner map[rune][]string, substring string, colo
 			positions = coloredPositions(n, substring)
 		}
 
-		runes := []rune(n)
+		segments, err := renderLineSegments(n, banner, colorCode, positions)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, RenderedLine{Segments: segments})
+	}
+
+	return output, nil
+}
+
+func renderLineSegments(line string, banner map[rune][]string, colorCode string, positions map[int]bool) ([]RenderedSegment, error) {
+	runes := []rune(line)
+	var segments []RenderedSegment
+
+	i := 0
+	for i < len(runes) {
+		isSpace := runes[i] == ' '
+		start := i
+		for i < len(runes) && (runes[i] == ' ') == isSpace {
+			i++
+		}
+		segRunes := runes[start:i]
+
 		var rows [8]string
-		for i, ch := range runes {
+		for j, ch := range segRunes {
 			charLines, ok := banner[ch]
 			if !ok {
 				return nil, errors.New("unsupported character")
 			}
+			pos := start + j
 			for r := 0; r < 8; r++ {
-				if colorCode != "" && positions[i] {
+				if colorCode != "" && positions[pos] {
 					rows[r] += colorize(charLines[r], colorCode)
 				} else {
 					rows[r] += charLines[r]
 				}
 			}
 		}
+
+		kind := SegmentWord
+		if isSpace {
+			kind = SegmentSpace
+		}
+
+		segments = append(segments, RenderedSegment{
+			Kind: kind,
+			Text: string(segRunes),
+			Rows: rows[:],
+		})
+	}
+
+	return segments, nil
+}
+
+func Flatten(rendered RenderedASCII) []string {
+	var output []string
+
+	for _, line := range rendered {
+		if len(line.Segments) == 0 {
+			output = append(output, "")
+			continue
+		}
+
+		var rows [8]string
+		for _, seg := range line.Segments {
+			for r := 0; r < 8; r++ {
+				rows[r] += seg.Rows[r]
+			}
+		}
 		for _, row := range rows {
 			output = append(output, row)
 		}
 	}
-	return output, nil
+
+	return output
 }
