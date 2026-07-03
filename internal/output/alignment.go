@@ -1,3 +1,4 @@
+// Package output owns terminal width detection, alignment, and writing rendered ASCII.
 package output
 
 import (
@@ -9,6 +10,7 @@ import (
 	"strings"
 )
 
+// visibleWidth counts printable bytes while ignoring ANSI escape sequences.
 func visibleWidth(s string) int {
 	width := 0
 	for i := 0; i < len(s); i++ {
@@ -25,6 +27,7 @@ func visibleWidth(s string) int {
 	return width
 }
 
+// terminalWidth reads COLUMNS and falls back to 80 when it is missing or invalid.
 func terminalWidth() int {
 	value := os.Getenv("COLUMNS")
 	number, err := strconv.Atoi(value)
@@ -37,6 +40,7 @@ func terminalWidth() int {
 	return number
 }
 
+// WriteAlignedASCII writes rendered ASCII rows using the requested alignment and width.
 func WriteAlignedASCII(w io.Writer, rendered renderer.RenderedASCII, align string, width int) error {
 	if align == "" || align == "left" {
 		lines := renderer.Flatten(rendered)
@@ -86,6 +90,7 @@ func writeJustifiedASCII(w io.Writer, rendered renderer.RenderedASCII, width int
 			}
 		}
 
+		// Only spaces between word segments are expandable justify gaps.
 		gapCount := 0
 		for i, segment := range line.Segments {
 			if segment.Kind == renderer.SegmentSpace &&
@@ -113,6 +118,7 @@ func writeJustifiedASCII(w io.Writer, rendered renderer.RenderedASCII, width int
 		gapIndex := 0
 
 		for i, segment := range line.Segments {
+			// Remainder spaces go to earlier gaps to match left-to-right distribution.
 			isGap := segment.Kind == renderer.SegmentSpace &&
 				i > 0 &&
 				i < len(line.Segments)-1 &&

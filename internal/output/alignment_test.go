@@ -1,3 +1,4 @@
+// Package output tests width detection and alignment behavior.
 package output
 
 import (

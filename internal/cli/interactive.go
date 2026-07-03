@@ -1,3 +1,4 @@
+// Package cli parses command-line and interactive options.
 package cli
 
 import (
@@ -34,15 +35,18 @@ func printAlignmentPrompt(out io.Writer) {
 var interactiveReader *bufio.Reader
 var interactiveReaderSource *os.File
 
+// runInteractive supports tests by running the legacy interactive flow on custom streams.
 func runInteractive(in io.Reader, out io.Writer) (string, string, string, string, bool, error) {
 	opts, exit, err := collectInteractiveOptions(bufio.NewReader(in), out, false)
 	return opts.Text, opts.BannerPath, opts.Color, opts.Substring, exit, err
 }
 
+// runInteractiveOptions supports tests by running the full options flow on custom streams.
 func runInteractiveOptions(in io.Reader, out io.Writer) (Options, bool, error) {
 	return collectInteractiveOptions(bufio.NewReader(in), out, true)
 }
 
+// RunInteractive reads legacy interactive input from os.Stdin and writes prompts to os.Stdout.
 func RunInteractive() (string, string, string, string, bool, error) {
 	if interactiveReader == nil || interactiveReaderSource != os.Stdin {
 		interactiveReader = bufio.NewReader(os.Stdin)
@@ -53,6 +57,7 @@ func RunInteractive() (string, string, string, string, bool, error) {
 	return opts.Text, opts.BannerPath, opts.Color, opts.Substring, exit, err
 }
 
+// RunInteractiveOptions reads full interactive options from os.Stdin and writes prompts to os.Stdout.
 func RunInteractiveOptions() (Options, bool, error) {
 	if interactiveReader == nil || interactiveReaderSource != os.Stdin {
 		interactiveReader = bufio.NewReader(os.Stdin)
@@ -62,6 +67,7 @@ func RunInteractiveOptions() (Options, bool, error) {
 	return collectInteractiveOptions(interactiveReader, os.Stdout, true)
 }
 
+// collectInteractiveOptions gathers text, banner, color, alignment, and optional output choices.
 func collectInteractiveOptions(reader *bufio.Reader, out io.Writer, askOutput bool) (Options, bool, error) {
 	var text string
 
@@ -157,6 +163,7 @@ func collectInteractiveOptions(reader *bufio.Reader, out io.Writer, askOutput bo
 	return finishInteractiveOptions(reader, out, opts, askOutput)
 }
 
+// finishInteractiveOptions collects Task 03 options only when the caller needs the full option set.
 func finishInteractiveOptions(reader *bufio.Reader, out io.Writer, opts Options, askOutput bool) (Options, bool, error) {
 	if !askOutput {
 		return opts, false, nil
@@ -193,6 +200,7 @@ func finishInteractiveOptions(reader *bufio.Reader, out io.Writer, opts Options,
 	}
 }
 
+// readInteractiveAlignment prompts until the user enters a supported alignment or exits.
 func readInteractiveAlignment(reader *bufio.Reader, out io.Writer, opts Options) (Options, bool, error) {
 	for {
 		printAlignmentPrompt(out)
@@ -218,6 +226,7 @@ func readInteractiveAlignment(reader *bufio.Reader, out io.Writer, opts Options)
 	}
 }
 
+// readInteractiveOutputFile prompts until the user enters a non-empty output file or exits.
 func readInteractiveOutputFile(reader *bufio.Reader, out io.Writer, opts Options) (Options, bool, error) {
 	for {
 		fmt.Fprint(out, "Enter output file name (/exit to quit): ")

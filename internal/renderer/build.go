@@ -1,7 +1,9 @@
+// Package renderer converts normalized input text into structured ASCII-art rows.
 package renderer
 
 import "errors"
 
+// BuildASCII renders normalized input lines into structured word and space segments.
 func BuildASCII(lines []string, banner map[rune][]string, substring string, color string) (RenderedASCII, error) {
 	var colorCode string
 	if color != "" {
@@ -42,6 +44,7 @@ func renderLineSegments(line string, banner map[rune][]string, colorCode string,
 
 	i := 0
 	for i < len(runes) {
+		// Group contiguous spaces separately so justify can expand only word gaps later.
 		isSpace := runes[i] == ' '
 		start := i
 		for i < len(runes) && (runes[i] == ' ') == isSpace {
@@ -80,6 +83,7 @@ func renderLineSegments(line string, banner map[rune][]string, colorCode string,
 	return segments, nil
 }
 
+// Flatten reproduces the old flat row output from structured renderer data.
 func Flatten(rendered RenderedASCII) []string {
 	var output []string
 

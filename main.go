@@ -1,3 +1,4 @@
+// Package main wires CLI parsing, banner loading, rendering, and output.
 package main
 
 import (

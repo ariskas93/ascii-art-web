@@ -1,3 +1,4 @@
+// Package output tests file writing wrappers.
 package output
 
 import (

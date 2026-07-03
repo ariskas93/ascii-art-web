@@ -1,3 +1,4 @@
+// Package banner tests official banner file loading and validation.
 package banner
 
 import (

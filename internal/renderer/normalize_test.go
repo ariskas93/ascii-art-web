@@ -1,3 +1,4 @@
+// Package renderer tests input normalization.
 package renderer
 
 import (

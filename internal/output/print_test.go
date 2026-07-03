@@ -1,3 +1,4 @@
+// Package output tests terminal printing wrappers.
 package output
 
 import (

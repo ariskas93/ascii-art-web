@@ -1,3 +1,4 @@
+// Package cli tests interactive prompt parsing on controlled streams.
 package cli
 
 import (

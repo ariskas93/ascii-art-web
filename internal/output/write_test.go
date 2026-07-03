@@ -1,3 +1,4 @@
+// Package output tests flat row writing.
 package output
 
 import (

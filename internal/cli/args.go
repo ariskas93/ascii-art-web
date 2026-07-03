@@ -1,3 +1,4 @@
+// Package cli parses command-line and interactive options.
 package cli
 
 import (
@@ -45,15 +46,18 @@ type Options struct {
 	Align      string
 }
 
+// positionalArg keeps the original argv index so color substrings can be detected by position.
 type positionalArg struct {
 	value string
 	index int
 }
 
+// RunArgumentModeOptions parses argument mode and returns the full option set.
 func RunArgumentModeOptions(args []string) (Options, error) {
 	return parseFlexibleArguments(args, true)
 }
 
+// RunArgumentMode preserves the older flat return shape for callers that do not need all options.
 func RunArgumentMode(args []string) (string, string, string, string, error) {
 	opts, err := parseFlexibleArguments(args, false)
 	if err != nil {
@@ -84,6 +88,7 @@ func parseFlexibleArguments(args []string, allowOutput bool) (Options, error) {
 	return opts, nil
 }
 
+// collectOptions removes supported flags while preserving positional operands for later validation.
 func collectOptions(args []string, allowOutput bool, opts *Options) ([]positionalArg, int, error) {
 	operands := []positionalArg{}
 	colorIndex := -1
@@ -139,6 +144,7 @@ func collectOptions(args []string, allowOutput bool, opts *Options) ([]positiona
 	return operands, colorIndex, nil
 }
 
+// applyOperands assigns remaining positional operands to text, banner, and optional color substring.
 func applyOperands(opts *Options, operands []positionalArg, colorIndex int) error {
 	if opts.Color != "" {
 		return applyColorOperands(opts, operands, colorIndex)
@@ -157,6 +163,7 @@ func applyOperands(opts *Options, operands []positionalArg, colorIndex int) erro
 	return nil
 }
 
+// applyColorOperands handles the legacy optional substring form after --color=<color>.
 func applyColorOperands(opts *Options, operands []positionalArg, colorIndex int) error {
 	if len(operands) == 0 {
 		return errors.New(ColorUsageMessage)
@@ -194,6 +201,7 @@ func applyColorOperands(opts *Options, operands []positionalArg, colorIndex int)
 	return err
 }
 
+// parseTextBannerOperands validates the required text and optional banner positional arguments.
 func parseTextBannerOperands(operands []positionalArg) (string, string, error) {
 	if len(operands) == 0 || len(operands) > 2 {
 		return "", "", errors.New(UsageMessage)
@@ -216,6 +224,7 @@ func parseTextBannerOperands(operands []positionalArg) (string, string, error) {
 	return text, bannerPath, nil
 }
 
+// findSubstringCandidate returns the operand immediately after the color flag, if one exists.
 func findSubstringCandidate(operands []positionalArg, colorIndex int) int {
 	for i, arg := range operands {
 		if arg.index == colorIndex+1 {
@@ -225,6 +234,7 @@ func findSubstringCandidate(operands []positionalArg, colorIndex int) int {
 	return -1
 }
 
+// removeOperand returns a copy of operands without the item at index.
 func removeOperand(operands []positionalArg, index int) []positionalArg {
 	remaining := make([]positionalArg, 0, len(operands)-1)
 	remaining = append(remaining, operands[:index]...)
@@ -232,6 +242,7 @@ func removeOperand(operands []positionalArg, index int) []positionalArg {
 	return remaining
 }
 
+// parseColorFlag validates --color=<value> syntax.
 func parseColorFlag(flag string) (string, error) {
 	if !strings.HasPrefix(flag, "--color=") {
 		return "", errors.New(ColorUsageMessage)
@@ -243,6 +254,7 @@ func parseColorFlag(flag string) (string, error) {
 	return color, nil
 }
 
+// parseOutputFlag validates --output=<file> syntax.
 func parseOutputFlag(flag string) (string, error) {
 	if !strings.HasPrefix(flag, "--output=") {
 		return "", errors.New(OutputUsageMessage)
@@ -254,6 +266,7 @@ func parseOutputFlag(flag string) (string, error) {
 	return outputFile, nil
 }
 
+// parseAlignFlag validates --align=<left|center|right|justify> syntax.
 func parseAlignFlag(flag string) (string, error) {
 	if !strings.HasPrefix(flag, "--align=") {
 		return "", errors.New(AlignUsageMessage)
@@ -266,6 +279,7 @@ func parseAlignFlag(flag string) (string, error) {
 	return "", errors.New(AlignUsageMessage)
 }
 
+// isValidAlign reports whether align is one of the supported lowercase values.
 func isValidAlign(align string) bool {
 	switch align {
 	case "left", "center", "right", "justify":
@@ -275,6 +289,7 @@ func isValidAlign(align string) bool {
 	}
 }
 
+// isOutputSyntax recognizes both valid and near-valid output flag forms for targeted errors.
 func isOutputSyntax(arg string) bool {
 	return arg == "--output" ||
 		strings.HasPrefix(arg, "--output=") ||
@@ -282,6 +297,7 @@ func isOutputSyntax(arg string) bool {
 		strings.HasPrefix(arg, "--outputs=")
 }
 
+// isColorSyntax recognizes both valid and near-valid color flag forms for targeted errors.
 func isColorSyntax(arg string) bool {
 	return arg == "--color" ||
 		strings.HasPrefix(arg, "--color=") ||
@@ -289,6 +305,7 @@ func isColorSyntax(arg string) bool {
 		strings.HasPrefix(arg, "--colour=")
 }
 
+// isAlignSyntax recognizes both valid and near-valid align flag forms for targeted errors.
 func isAlignSyntax(arg string) bool {
 	return arg == "--align" ||
 		strings.HasPrefix(arg, "--align=") ||
@@ -296,6 +313,7 @@ func isAlignSyntax(arg string) bool {
 		strings.HasPrefix(arg, "--alignment=")
 }
 
+// normalizeBannerArg converts accepted banner names to repository banner paths.
 func normalizeBannerArg(banner string) (string, error) {
 	switch banner {
 	case "standard", "standard.txt":
@@ -309,6 +327,7 @@ func normalizeBannerArg(banner string) (string, error) {
 	}
 }
 
+// invalidBannerMessage formats the exact banner error required by the CLI contract.
 func invalidBannerMessage(banner string) string {
 	return "Invalid banner: " + banner + "\n\n" + UsageMessage
 }

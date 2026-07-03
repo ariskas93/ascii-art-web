@@ -1,3 +1,4 @@
+// Package banner loads the official ASCII-art banner files.
 package banner
 
 import (
@@ -6,6 +7,7 @@ import (
 	"strings"
 )
 
+// LoadBanner reads a banner file and maps printable ASCII runes to their 8-line art blocks.
 func LoadBanner(path string) (map[rune][]string, error) {
 	data, err := os.ReadFile(path)
 

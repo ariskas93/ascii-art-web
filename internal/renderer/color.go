@@ -1,3 +1,4 @@
+// Package renderer converts normalized input text into structured ASCII-art rows.
 package renderer
 
 import (
@@ -27,6 +28,7 @@ var ansiColors = map[string]string{
 	"orange":  "\033[38;5;208m",
 }
 
+// getANSIColor resolves supported color notation to an ANSI foreground escape code.
 func getANSIColor(color string) (string, error) {
 	colorCode, ok := ansiColors[color]
 	if ok {
@@ -48,6 +50,7 @@ func getANSIColor(color string) (string, error) {
 	return "", errors.New(invalidColorName)
 }
 
+// getANSIColorFromHex parses #RRGGBB notation.
 func getANSIColorFromHex(color string) (string, error) {
 	if len(color) != 7 {
 		return "", errors.New(invalidHexColorCode)
@@ -73,6 +76,7 @@ func parseHexColorPart(part string) (uint64, error) {
 	return strconv.ParseUint(part, 16, 8)
 }
 
+// getANSIColorFromRGB parses rgb,<red>,<green>,<blue> notation.
 func getANSIColorFromRGB(color string) (string, error) {
 	parts := strings.Split(color, ",")
 	if len(parts) != 4 || !strings.EqualFold(strings.TrimSpace(parts[0]), "rgb") {
@@ -109,6 +113,7 @@ func parseRGBColorPart(part string) (int, error) {
 	return value, nil
 }
 
+// getANSIColorFromHSL parses hsl,<hue>,<saturation>%,<lightness>% notation.
 func getANSIColorFromHSL(color string) (string, error) {
 	parts := strings.Split(color, ",")
 	if len(parts) != 4 || !strings.EqualFold(strings.TrimSpace(parts[0]), "hsl") {
@@ -165,6 +170,7 @@ func parseHSLPercent(part string) (int, error) {
 	return value, nil
 }
 
+// hslToRGB converts integer HSL components into RGB components.
 func hslToRGB(hue int, saturation int, lightness int) (int, int, int) {
 	h := float64(hue)
 	if hue == 360 {
@@ -212,10 +218,12 @@ func isDigits(s string) bool {
 	return true
 }
 
+// formatTrueColor formats RGB components as an ANSI truecolor escape sequence.
 func formatTrueColor(red int, green int, blue int) string {
 	return fmt.Sprintf("\033[38;2;%d;%d;%dm", red, green, blue)
 }
 
+// colorize wraps rendered ASCII text with the selected ANSI color and reset code.
 func colorize(text string, colorCode string) string {
 	if colorCode == "" {
 		return text

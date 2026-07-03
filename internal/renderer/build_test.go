@@ -1,3 +1,4 @@
+// Package renderer tests structured ASCII-art rendering.
 package renderer
 
 import (

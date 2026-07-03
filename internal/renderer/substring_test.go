@@ -1,3 +1,4 @@
+// Package renderer tests substring position detection for coloring.
 package renderer
 
 import (

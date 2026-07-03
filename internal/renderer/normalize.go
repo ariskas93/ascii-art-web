@@ -1,7 +1,9 @@
+// Package renderer converts normalized input text into structured ASCII-art rows.
 package renderer
 
 import "strings"
 
+// NormalizeInput splits escaped newline sequences while preserving real newline characters.
 func NormalizeInput(input string) []string {
 	if input == "" {
 		return []string{}

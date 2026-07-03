@@ -1,3 +1,4 @@
+// Package cli tests argument parsing and usage-message contracts.
 package cli
 
 import (

@@ -1,3 +1,4 @@
+// Package renderer tests ANSI color parsing and application.
 package renderer
 
 import "testing"
