@@ -1,6 +1,7 @@
 package output
 
 import (
+	"ascii-art/internal/renderer"
 	"os"
 	"path/filepath"
 	"testing"
@@ -86,5 +87,43 @@ func TestWriteASCIIFile_invalidPath_returnsError(t *testing.T) {
 	err := WriteASCIIFile("/nonexistent_dir/output.txt", []string{"hello"})
 	if err == nil {
 		t.Error("expected error for invalid path, got nil")
+	}
+}
+
+func TestWriteAlignedASCIIFile_writesAlignedRows(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "aligned.txt")
+	rendered := renderer.RenderedASCII{
+		{
+			Segments: []renderer.RenderedSegment{
+				{
+					Kind: renderer.SegmentWord,
+					Text: "A",
+					Rows: []string{"A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7"},
+				},
+			},
+		},
+	}
+
+	err := WriteAlignedASCIIFile(path, rendered, "right", 6)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("could not read file: %v", err)
+	}
+
+	expected := "    A0\n" +
+		"    A1\n" +
+		"    A2\n" +
+		"    A3\n" +
+		"    A4\n" +
+		"    A5\n" +
+		"    A6\n" +
+		"    A7\n"
+	if string(data) != expected {
+		t.Fatalf("got %q, want %q", string(data), expected)
 	}
 }

@@ -40,9 +40,9 @@ func main() {
 		}
 
 		if opts.OutputFile != "" {
-			err = output.WriteASCIIFile(opts.OutputFile, ascii)
+			err = output.WriteAlignedASCIIFileWithTerminalWidth(opts.OutputFile, ascii, opts.Align)
 		} else {
-			err = output.PrintASCII(ascii)
+			err = output.PrintAlignedASCII(ascii, opts.Align)
 		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
