@@ -125,7 +125,13 @@ Responsibilities:
 
 - Add output functions for aligned writing.
 - Implement left, center, right, and justify.
-- Detect terminal width using standard packages.
+- Detect the current terminal width at output time using standard packages.
+- Try standard output, standard input, and standard error before falling back
+  to `COLUMNS`, then `80`.
+- Isolate Linux/WSL device detection and its tests in matching platform files.
+- Keep non-Linux builds compiling through a fallback platform file.
+- Use the same current-terminal width when writing aligned output to a file.
+- Treat file padding as fixed after the file is created.
 - Ignore ANSI escape sequences when measuring visible width.
 - Update `main.go` for structured output and alignment.
 - Add output and integration tests.

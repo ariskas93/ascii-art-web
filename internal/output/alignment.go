@@ -27,8 +27,17 @@ func visibleWidth(s string) int {
 	return width
 }
 
-// terminalWidth reads COLUMNS and falls back to 80 when it is missing or invalid.
+// terminalWidth detects the current terminal width from the standard streams.
+// It falls back to COLUMNS, then to 80, when live detection is unavailable.
 func terminalWidth() int {
+	streams := []*os.File{os.Stdout, os.Stdin, os.Stderr}
+
+	for _, stream := range streams {
+		width, ok := terminalWidthFromFile(stream)
+		if ok {
+			return width
+		}
+	}
 	value := os.Getenv("COLUMNS")
 	number, err := strconv.Atoi(value)
 	if err != nil {

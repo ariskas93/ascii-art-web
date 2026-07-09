@@ -10,9 +10,10 @@ The current implementation supports:
 - foreground color using preset names, full hexadecimal color codes, RGB, or HSL
 - escaped newline sequences written as `\n`
 - output files with `--output=<file>`
+- left, center, right, and justify alignment
 - printable ASCII characters supported by the banner files
 
-The active project objective is to add alignment. The CLI alignment option is part of Task 01, while the renderer and output packages still need Task 02 and Task 03 to make alignment affect the final visual output:
+Alignment is implemented for terminal and file output:
 
 ```bash
 go run . --align=left "Hello"
@@ -195,11 +196,22 @@ When `--output=<file>` is used, the program writes to the file instead of printi
 
 ANSI color codes are preserved in file output.
 
-## Alignment Objective
+Aligned file output uses the width of the terminal in which the command is
+currently running. Width is measured when the file is created, and the
+resulting padding is written as fixed spaces. Opening the file later in a
+different-sized editor or terminal does not realign it.
 
-Alignment is the active implementation target. The CLI can parse alignment options once Task 01 is complete; visual alignment depends on the structured renderer and output work in Task 02 and Task 03.
+Width selection follows this order:
 
-Planned syntax:
+```text
+current terminal width
+-> valid COLUMNS value
+-> 80-column fallback
+```
+
+## Alignment
+
+Syntax:
 
 ```bash
 go run . --align=left "Hello"
@@ -208,7 +220,7 @@ go run . --align=right "Hello"
 go run . --align=justify "Hello world"
 ```
 
-Planned values:
+Values:
 
 ```text
 left
@@ -217,7 +229,8 @@ right
 justify
 ```
 
-The agreed design replaces flat renderer output with structured rendering. The renderer will preserve word and space-run segments so the output package can implement justify without stretching spaces inside ASCII-art letters.
+The renderer preserves word and space-run segments so the output package can
+implement justify without stretching spaces inside ASCII-art letters.
 
 Task split:
 
@@ -263,10 +276,17 @@ ascii-art/
 |   |   |-- cli_test.go
 |   |   `-- interactive_test.go
 |   |-- output/
+|   |   |-- alignment.go
+|   |   |-- alignment_test.go
 |   |   |-- print.go
+|   |   |-- print_test.go
+|   |   |-- terminal_width_linux.go
+|   |   |-- terminal_width_linux_test.go
+|   |   |-- terminal_width_other.go
 |   |   |-- write.go
+|   |   |-- write_test.go
 |   |   |-- write_file.go
-|   |   `-- print_test.go
+|   |   `-- write_file_test.go
 |   `-- renderer/
 |       |-- build.go
 |       |-- color.go
@@ -298,16 +318,6 @@ Current pipeline:
 CLI input
 -> banner loading
 -> input normalization
--> ASCII rendering
--> output printing or file writing
-```
-
-Alignment target pipeline:
-
-```text
-CLI input
--> banner loading
--> input normalization
 -> structured ASCII rendering
 -> aligned terminal/file output
 ```
@@ -317,7 +327,7 @@ Package responsibilities:
 - `internal/cli`: chooses interactive or argument mode and validates user input
 - `internal/banner`: loads banner files into `map[rune][]string`
 - `internal/renderer`: normalizes input, validates color values, finds colored positions, and builds ASCII-art
-- `internal/output`: prints, writes files, and will own alignment
+- `internal/output`: detects width, aligns rendered rows, and writes terminal or file output
 - `main.go`: connects the packages
 
 ## Testing
@@ -340,6 +350,9 @@ Current tests cover:
 - color name, hexadecimal, RGB, and HSL validation
 - substring position matching for color rendering
 - output printing and file writing
+- left, center, right, and justify alignment
+- ANSI-aware visible-width calculations
+- terminal-width fallbacks and Linux non-terminal detection
 
 Additional edge cases are documented in:
 
@@ -353,5 +366,6 @@ internal/cli/test_cases.md
 - Custom banner file paths are not accepted from user input.
 - Numeric banner choices are only used in interactive mode.
 - Unicode characters outside the printable ASCII banner range are not supported.
-- Alignment is designed but not yet implemented.
+- Live terminal-width detection is implemented for Linux and WSL. Other
+  platforms use `COLUMNS`, then the 80-column fallback.
 - Resizing and scaling are not implemented.

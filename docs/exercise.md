@@ -169,13 +169,24 @@ Default alignment is left.
 
 Use only standard Go packages.
 
-Recommended first version:
+Required width policy:
 
-- read `COLUMNS`
-- parse it as an integer
-- fallback to `80` when missing or invalid
+- detect the current terminal width at the moment output is produced
+- try the standard streams because one stream may be redirected while another
+  still refers to the terminal
+- on Linux and WSL, query the terminal device through standard-library system
+  calls
+- on other operating systems, report live detection as unavailable and
+  continue through the fallback chain
+- use a valid `COLUMNS` value when no live terminal width can be detected
+- fallback to `80` when live detection and `COLUMNS` are unavailable or invalid
 - keep width detection in the output package
-- expose width-explicit functions for unit tests
+- expose width-explicit functions for deterministic unit tests
+- use the same detected current-terminal width for terminal output and
+  `--output=<file>`
+
+File padding is fixed when the file is written. Opening the file later in a
+different-sized terminal or editor does not cause it to realign.
 
 ## Alignment Algorithms
 
@@ -241,6 +252,7 @@ Ownership:
 - multiple spaces between words
 - ANSI color codes in aligned output
 - rows wider than terminal width
+- unavailable live terminal width
 - missing or invalid `COLUMNS`
 - alignment combined with output files
 - alignment combined with colored substrings

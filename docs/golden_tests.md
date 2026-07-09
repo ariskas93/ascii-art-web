@@ -56,8 +56,13 @@ These edge cases describe the expected behavior at the package boundaries. Keep 
 | Renderer build color | Invalid color | An invalid name, hex code, RGB value, or HSL value returns an error before producing output | `internal/renderer/build_test.go` |
 | Renderer build color | Spaces preserved | Coloring part of a string must not remove or trim spaces from rendered output | `internal/renderer/build_test.go` |
 | Output printer | Exact stdout format | Each provided output row is printed with one newline, and an empty slice prints nothing | `internal/output/print_test.go` |
-| Output alignment | ANSI-aware visible width | Planned: ANSI escape sequences do not count as visible width when padding aligned output | `internal/output/*_test.go` |
-| Output alignment | Justify uses structured segments | Planned: justify expands only spaces between rendered word segments, not spaces inside ASCII-art letters | `internal/output/*_test.go` |
+| Output alignment | ANSI-aware visible width | ANSI escape sequences do not count as visible width when padding aligned output | `internal/output/alignment_test.go` |
+| Output alignment | Justify uses structured segments | Justify expands only spaces between rendered word segments, not spaces inside ASCII-art letters | `internal/output/alignment_test.go` |
+| Output width | Linux non-terminal file | A regular file returns width `0` and detection status `false` | `internal/output/terminal_width_linux_test.go` |
+| Output width | Live terminal width | Terminal output detects the current terminal width when output is produced instead of assuming a fixed width | manual terminal check |
+| Output width | Redirected standard stream | Width detection tries standard output, standard input, and standard error before using fallbacks | `internal/output/*_test.go` |
+| Output width | Detection fallback | If no live terminal is available, a valid `COLUMNS` value is used; otherwise width falls back to `80` | `internal/output/alignment_test.go` |
+| File output alignment | Current terminal width | `--output=<file>` calculates alignment using the current launching terminal width, and writes the resulting padding as fixed spaces | `internal/output/*_test.go` plus manual file check |
 
 ---
 
@@ -140,6 +145,10 @@ Golden assertions for aligned rendering:
 - Justify leaves one-word lines left-aligned.
 - Leading and trailing spaces are preserved.
 - File output and terminal output use the same aligned rows.
+- Terminal and file output use the current terminal width measured when output
+  is produced.
+- A saved text file keeps its written padding and does not dynamically realign
+  when opened in a differently sized viewer.
 
 ## Audit Golden Outputs
 

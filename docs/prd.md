@@ -392,11 +392,21 @@ justify
 Terminal width detection:
 
 - use only standard Go packages
-- read `COLUMNS`
-- fallback to `80` when missing or invalid
+- detect the current terminal width each time output is produced
+- try standard output, standard input, and standard error because individual
+  streams may be redirected
+- use Linux standard-library system calls for live detection on Linux and WSL
+- keep a non-Linux implementation that reports live detection as unavailable,
+  allowing the fallback chain to continue
+- use a valid `COLUMNS` value when live terminal detection fails
+- fallback to `80` when live detection and `COLUMNS` are unavailable or invalid
 - unit-test alignment through width-explicit functions
 
-When writing aligned output to a file, alignment is still calculated using the current terminal width at the time the command runs. The program does not try to detect or predict the width of the editor, terminal, or viewer that will open the file later.
+Terminal output and `--output=<file>` use the same current-terminal width
+policy. When writing aligned output to a file, alignment is calculated using
+the width of the terminal in which the command is running. The resulting
+spaces are fixed in the file. The program does not try to detect or predict
+the width of the editor, terminal, or viewer that opens the file later.
 
 Visible width must ignore ANSI escape sequences.
 

@@ -23,12 +23,23 @@ Default alignment is left.
 
 Use only Go standard packages.
 
-Recommended first implementation:
+Required implementation:
 
-- Read `COLUMNS` from the environment.
+- Detect the current terminal width whenever output is produced.
+- Try standard output, standard input, and standard error so detection can
+  still succeed when one stream is redirected.
+- Keep Linux/WSL device detection in `terminal_width_linux.go` using only
+  standard packages.
+- Keep the matching Linux tests in `terminal_width_linux_test.go`.
+- Provide `terminal_width_other.go` for non-Linux builds; it reports live
+  detection as unavailable so fallback behavior remains usable.
+- If live detection fails, read `COLUMNS` from the environment.
 - If `COLUMNS` is missing, invalid, or less than 1, fall back to `80`.
 - Keep width detection at the edge of the output package so unit tests can pass explicit widths.
-- File output uses the current terminal width at the time the command runs; the program does not try to predict the width of a future text editor or viewer.
+- Terminal output and file output use the same current-terminal width policy.
+- File output uses the width of the terminal in which the command runs. Its
+  padding is fixed when written; the program does not predict the width of a
+  future text editor or viewer.
 
 Suggested API shape:
 
