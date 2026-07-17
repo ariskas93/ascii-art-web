@@ -1,264 +1,477 @@
-# ASCII-Art Alignment Objective
+# ASCII Art Web – Implementation Exercise
 
-We are extending the existing ASCII-Art project by implementing the **alignment** optional objective.
+## 1. Project Overview
 
-The current project already supports:
+This project extends the existing ASCII Art CLI application into a web application while preserving the current rendering engine. The banner loading, input normalization, validation, and ASCII rendering logic implemented in the previous project should be reused wherever possible. The primary objective is to replace the command-line interface with an HTTP server and HTML frontend while maintaining the same rendering behavior.
 
-- argument mode
-- interactive mode
-- `standard`, `shadow`, and `thinkertoy` banners
-- color rendering with `--color=<color>`
-- output files with `--output=<file>`
+This is an extension of the existing codebase, **not a rewrite**. The rendering pipeline should remain the single source of truth for ASCII art generation.
 
-The next project goal is to add:
+---
 
-```bash
-go run . --align=left "hello"
-go run . --align=center "hello" shadow
-go run . "hello" shadow --align=right
-go run . --align=justify "hello world"
+# 2. Objectives
+
+Implement a Go HTTP server that provides a graphical interface for generating ASCII art.
+
+The application must:
+
+- Serve an HTML webpage.
+- Accept user input through an HTML form.
+- Allow selection of one of the supported banners:
+  - standard
+  - shadow
+  - thinkertoy
+- Generate ASCII art using the existing renderer.
+- Display the rendered ASCII art in the browser.
+- Return appropriate HTTP status codes.
+- Use only the Go standard library.
+
+---
+
+# 3. Existing Project Summary
+
+The previous project already provides the core functionality required for rendering ASCII art.
+
+Existing features include:
+
+- Banner loading and validation.
+- ASCII rendering.
+- Escaped newline normalization.
+- Support for:
+  - standard
+  - shadow
+  - thinkertoy
+- Input validation.
+- Error handling for invalid banners and unsupported characters.
+
+The CLI implementation should be treated as the reference implementation for rendering behavior.
+
+Only the interface changes—from terminal interaction to HTTP requests.
+
+The rendering logic itself should remain unchanged.
+
+---
+
+# 4. Reusable Components
+
+Reuse the existing implementation wherever possible.
+
+Recommended components to keep:
+
+- Banner loader
+- Banner validation
+- ASCII renderer
+- Input normalization
+- Existing error handling related to rendering
+
+Avoid duplicating rendering logic.
+
+The HTTP handlers should simply collect user input, invoke the existing rendering pipeline, and return the generated result.
+
+---
+
+# 5. Suggested Project Architecture
+
+A clean project structure might resemble:
+
+```
+.
+├── main.go
+├── handlers.go
+├── templates/
+│   └── index.html
+├── banners/
+│   ├── standard.txt
+│   ├── shadow.txt
+│   └── thinkertoy.txt
+├── internal/
+│   ├── banner/
+│   ├── renderer/
+│   └── ...
+└── README.md
 ```
 
-## Current Architecture
+Suggested responsibility breakdown:
 
-The project uses a pipeline:
+### main.go
 
-```text
-CLI
--> Banner Loader
--> Normalize Input
--> Renderer
--> Output
+- Start the HTTP server.
+- Register routes.
+- Handle server startup errors.
+
+### handlers.go
+
+Implement all HTTP handlers.
+
+Responsibilities include:
+
+- Parsing requests.
+- Validating form input.
+- Calling the renderer.
+- Executing templates.
+- Returning appropriate HTTP status codes.
+
+### templates/
+
+Contains all HTML templates used by the application.
+
+The assignment requires HTML templates to reside inside the `templates` directory.
+
+---
+
+# 6. Request Flow
+
+```
+Browser
+    │
+    ▼
+GET /
+    │
+    ▼
+Load HTML template
+    │
+    ▼
+Display form
+    │
+    ▼
+User submits form
+    │
+    ▼
+POST /ascii-art
+    │
+    ▼
+Read form values
+    │
+    ▼
+Validate input
+    │
+    ▼
+Load selected banner
+    │
+    ▼
+Render ASCII art
+    │
+    ▼
+Execute template
+    │
+    ▼
+Return HTML response
 ```
 
-Current packages:
+---
 
-- `internal/cli`
-- `internal/banner`
-- `internal/renderer`
-- `internal/output`
+# 7. HTTP API Specification
 
-## Final Design Decision
+## GET /
 
-Alignment will not be implemented inside the renderer.
+Purpose:
 
-The renderer will still be responsible for converting text into ASCII-art, but it will no longer flatten each rendered line into plain `[]string` too early.
+Serve the main HTML page.
 
-Instead, `BuildASCII` will return structured rendering data.
+Expected behavior:
 
-The output package will use that structured data to apply:
+- Load the HTML template.
+- Display:
+  - text input
+  - banner selector
+  - submit button
+  - rendered result (if applicable)
 
-- left alignment
-- center alignment
-- right alignment
-- justify alignment
+Successful response:
 
-This replaces the older idea where output would receive only rendered `[]string` rows.
-
-## Why Structured Rendering
-
-Justify alignment needs to expand only the spaces between words.
-
-If the output package receives only final rendered rows, it cannot safely tell the difference between:
-
-- spaces between words
-- spaces inside ASCII-art letters
-- spaces from the banner style itself
-
-Trying to justify already-flattened rows would damage the shapes of the ASCII-art characters.
-
-Structured rendering solves this by preserving word and space-run segments.
-
-Example input:
-
-```text
-"hello   world"
+```
+200 OK
 ```
 
-Structured rendering:
+Possible errors:
 
-```text
-word("hello")
-space("   ")
-word("world")
+```
+404 Not Found
 ```
 
-Each segment contains its own 8 rendered ASCII-art rows.
+If the template cannot be located.
 
-## Proposed Renderer Contract
-
-```go
-type SegmentKind int
-
-const (
-	SegmentWord SegmentKind = iota
-	SegmentSpace
-)
-
-type RenderedSegment struct {
-	Kind SegmentKind
-	Text string
-	Rows []string
-}
-
-type RenderedLine struct {
-	Segments []RenderedSegment
-}
-
-type RenderedASCII []RenderedLine
+```
+500 Internal Server Error
 ```
 
-Preferred final renderer API:
+For unexpected failures while executing templates.
 
-```go
-func BuildASCII(lines []string, banner map[rune][]string, substring string, color string) (RenderedASCII, error)
+---
+
+## POST /ascii-art
+
+Purpose:
+
+Generate ASCII art from submitted form data.
+
+Expected form values:
+
+```
+text
+banner
 ```
 
-The function name can stay `BuildASCII`, but the return type changes from flat rows to structured output.
+Workflow:
 
-## CLI Rules
+1. Parse form.
+2. Validate request.
+3. Validate banner.
+4. Render ASCII art.
+5. Execute template with result.
 
-The CLI should parse:
+Successful response:
 
-```text
---align=left
---align=center
---align=right
---align=justify
+```
+200 OK
 ```
 
-Flags may appear in any order, as long as they use the `--flag=value` form.
+Possible errors:
 
-Examples:
-
-```bash
-go run . --align=center "hello"
-go run . "hello" --align=center
-go run . "hello" shadow --align=right
-go run . --output=out.txt --align=justify "hello world"
-go run . --color=cyan world "hello world" --align=center
+```
+400 Bad Request
 ```
 
-Invalid forms:
+Invalid or malformed request.
 
-```bash
-go run . --align center "hello"
-go run . --align= "hello"
-go run . -align=center "hello"
-go run . --alignment=center "hello"
+```
+404 Not Found
 ```
 
-## Shared Options
+Missing banner file.
 
-The CLI should return a configuration object containing:
-
-```go
-type Options struct {
-	Text       string
-	BannerPath string
-	Color      string
-	Substring  string
-	OutputFile string
-	Align      string
-}
+```
+500 Internal Server Error
 ```
 
-Default alignment is left.
+Unexpected rendering or template execution failures.
 
-## Terminal Width
+---
 
-Use only standard Go packages.
+# 8. HTML Requirements
 
-Required width policy:
+The main page must contain:
 
-- detect the current terminal width at the moment output is produced
-- try the standard streams because one stream may be redirected while another
-  still refers to the terminal
-- on Linux and WSL, query the terminal device through standard-library system
-  calls
-- on other operating systems, report live detection as unavailable and
-  continue through the fallback chain
-- use a valid `COLUMNS` value when no live terminal width can be detected
-- fallback to `80` when live detection and `COLUMNS` are unavailable or invalid
-- keep width detection in the output package
-- expose width-explicit functions for deterministic unit tests
-- use the same detected current-terminal width for terminal output and
-  `--output=<file>`
+- A text input field (or textarea).
+- Banner selector.
+  - Radio buttons
+  - Select element
+  - Any equivalent method
+- Submit button.
+- HTML form using POST.
+- Display area for generated ASCII art.
 
-File padding is fixed when the file is written. Opening the file later in a
-different-sized terminal or editor does not cause it to realign.
+Recommended HTML structure:
 
-## Alignment Algorithms
+```
+<form method="POST" action="/ascii-art">
 
-### Left
+    Text input
 
-Print the flattened structured output as-is.
+    Banner selection
 
-### Center
+    Submit button
 
-For each rendered row:
+</form>
 
-```text
-left padding = (terminal width - visible row width) / 2
+<pre>
+
+Generated ASCII Art
+
+</pre>
 ```
 
-If the row is wider than the terminal width, print it unchanged.
+Using a `<pre>` element is recommended to preserve spacing and formatting.
 
-### Right
+---
 
-For each rendered row:
+# 9. Template Data
 
-```text
-left padding = terminal width - visible row width
+The HTML template should receive data from the server using Go templates.
+
+Example fields:
+
+```
+InputText
+
+SelectedBanner
+
+ASCIIArt
+
+Error
 ```
 
-If the row is wider than the terminal width, print it unchanged.
+Handlers should populate these values before executing the template.
 
-### Justify
+---
 
-Justify must use structured segments.
+# 10. Implementation Plan
 
-Rules:
+## Phase 1
 
-- Expand only gaps between word segments.
-- Do not expand spaces inside rendered ASCII-art letters.
-- Do not expand leading or trailing spaces.
-- Lines with fewer than two word segments are printed left-aligned.
-- If the rendered words already exceed terminal width, print left-aligned.
-- Distribute extra gap width from left to right.
+Set up the HTTP server.
 
-## Task Split
+Tasks:
 
-Task files:
+- Create main.go.
+- Register routes.
+- Start listening on a port.
 
-```text
-docs/tasks/task01_cli_alignment.md
-docs/tasks/task02_structured_renderer.md
-docs/tasks/task03_output_alignment_integration.md
+---
+
+## Phase 2
+
+Implement GET /
+
+Tasks:
+
+- Load HTML template.
+- Render home page.
+- Handle missing template errors.
+
+---
+
+## Phase 3
+
+Create the HTML interface.
+
+Tasks:
+
+- Text input.
+- Banner selector.
+- Submit button.
+- Display area.
+
+---
+
+## Phase 4
+
+Implement POST /ascii-art
+
+Tasks:
+
+- Parse form.
+- Validate request.
+- Validate banner.
+- Invoke renderer.
+- Return HTML response.
+
+---
+
+## Phase 5
+
+Integrate existing renderer.
+
+Tasks:
+
+- Reuse current banner loader.
+- Reuse normalization.
+- Reuse renderer.
+- Avoid duplicating rendering code.
+
+---
+
+## Phase 6
+
+Implement error handling.
+
+Return correct HTTP status codes for:
+
+- Bad requests.
+- Missing resources.
+- Internal failures.
+
+---
+
+## Phase 7
+
+Create README.md
+
+Include:
+
+- Description
+- Authors
+- Usage
+- Implementation details
+
+---
+
+# 11. HTTP Status Codes
+
+The server must return appropriate status codes.
+
+| Situation | Status |
+|-----------|--------|
+| Successful request | 200 OK |
+| Invalid request | 400 Bad Request |
+| Missing template | 404 Not Found |
+| Missing banner | 404 Not Found |
+| Unexpected error | 500 Internal Server Error |
+
+The application should never panic during normal operation.
+
+Errors should be handled gracefully with meaningful HTTP responses.
+
+---
+
+# 12. Testing Checklist
+
+Verify the following:
+
+- GET / returns HTML.
+- Home page loads successfully.
+- Form submits correctly.
+- Standard banner renders correctly.
+- Shadow banner renders correctly.
+- Thinkertoy banner renders correctly.
+- Escaped newlines behave as expected.
+- Missing banner returns 404.
+- Missing template returns 404.
+- Invalid POST request returns 400.
+- Unexpected failures return 500.
+- ASCII art formatting is preserved.
+- Browser output matches CLI rendering.
+- README is present.
+
+---
+
+# 13. Constraints
+
+Implementation must satisfy the following:
+
+- Use only the Go standard library.
+- HTML templates must be located inside the `templates` directory.
+- Reuse the existing rendering pipeline.
+- Do not duplicate renderer functionality.
+- Do not modify banner files unless explicitly required.
+- Follow Go best practices.
+- Keep rendering logic separate from HTTP handling.
+
+---
+
+# 14. Deliverables
+
+At completion, the project should include at minimum:
+
+```
+main.go
+
+handlers.go
+
+templates/
+    index.html
+
+README.md
+
+banners/
+
+internal/
 ```
 
-Ownership:
+The application should successfully:
 
-- Programmer 1: CLI alignment option and `Options.Align`
-- Programmer 2: structured renderer replacement
-- Programmer 3: output alignment and main integration
-
-## Edge Cases
-
-- one-word justify lines
-- empty normalized lines
-- leading spaces
-- trailing spaces
-- multiple spaces between words
-- ANSI color codes in aligned output
-- rows wider than terminal width
-- unavailable live terminal width
-- missing or invalid `COLUMNS`
-- alignment combined with output files
-- alignment combined with colored substrings
-
-## Development Rule
-
-Do not implement justify by searching or stretching spaces inside final rendered rows.
-
-Justify must be based on structured word and space segments from the renderer.
+- Serve an HTML interface.
+- Accept user input.
+- Render ASCII art using any supported banner.
+- Display the generated ASCII art in the browser.
+- Return appropriate HTTP status codes.
+- Preserve the behavior of the existing ASCII rendering implementation while replacing only the user interface layer.
