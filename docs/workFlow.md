@@ -1,165 +1,212 @@
-# Workflow - ASCII Art Alignment
+# Workflow — ASCII Art Web
 
 ## Objective
 
-Add alignment support to the existing ASCII-Art program:
+Expose the existing ASCII-art engine through a browser. Running:
 
 ```bash
-go run . --align=left "hello"
-go run . --align=center "hello" standard
-go run . --align=right "hello" shadow
-go run . --align=justify "hello world" thinkertoy
+go run .
 ```
 
-The program must keep supporting:
+must start an HTTP server on `:8080`. Users configure everything through an HTML
+form, generate on the same page, clear the page, and download the output:
 
-```bash
-go run . "hello"
-go run . "hello" shadow
-go run . --color=red ll "hello"
-go run . --output=out.txt "hello"
+```text
+GET  /                    → main page (also the Clear target)
+POST /ascii-art           → generate and display the result
+POST /ascii-art/download  → download the displayed result as ascii-art.txt
 ```
 
-Alignment must work together with color, banner selection, escaped newlines, interactive mode, and output files.
+The web layer must **reuse** the existing banner, renderer, and output packages.
+It must not become a second implementation of banner rendering, substring
+matching, or alignment. Only the Go standard library is used on the server.
 
 ## Shared Contract
 
-The CLI returns one options value:
+The web package separates untrusted form values, validated generation values,
+generated output, and template presentation. These types are locked in Phase 0
+so all three packages compile against them:
 
 ```go
-type Options struct {
-	Text       string
-	BannerPath string
-	Color      string
-	Substring  string
-	OutputFile string
-	Align      string
+type FormState struct {          // raw, untrusted
+	Text, Banner, Color, Substring, Alignment, Width string
+	UseColor bool
+}
+
+type SelectedColor struct {       // validated
+	Enabled          bool
+	Hex              string
+	Red, Green, Blue int
+}
+
+type GenerationInput struct {     // validated, bounded
+	Text, Banner, Substring, Alignment string
+	Color                              SelectedColor
+	Width                              int
+}
+
+type GeneratedASCII struct {      // shared generator output
+	ANSIText string
+	Width    int
+}
+
+type StyledRun struct  { Text string; Colored bool }
+type StyledLine struct { Runs []StyledRun }
+
+type PageData struct {            // template model
+	Form          FormState
+	Output        []StyledLine
+	HasResult     bool
+	Error         string
+	RenderedWidth int
+	Color         SelectedColor
 }
 ```
 
-`Align == "left"` means left alignment.
-
-Accepted alignment values:
+One-way data flow:
 
 ```text
-left
-center
-right
-justify
+HTTP request → FormState → validation → GenerationInput
+             → shared generator → GeneratedASCII
+             → presenter → browser PageData or plain download
 ```
+
+Accepted form keys are exactly: `text`, `banner`, `use_color`, `color`,
+`substring`, `align`, `width`.
 
 ## Architecture Decision
 
-The project will replace flat rendering with structured rendering.
+The HTTP layer stays thin. It handles HTTP concerns only; the algorithms stay in
+the preserved packages.
 
-Old renderer output:
-
-```go
-[]string
+```text
+internal/banner    → banner loading and validation      (unchanged)
+internal/renderer  → normalize, color, substring, glyphs (NormalizeInput extended)
+internal/output    → visible width, alignment, writing   (unchanged)
+internal/web       → routes, forms, handlers, generation, presentation, middleware (new)
+main.go            → server lifecycle and shutdown        (was CLI)
 ```
 
-New renderer output:
+Browser display and download share **one** generation workflow:
 
-```go
-type RenderedASCII []RenderedLine
+```text
+validated input
+    → map banner identifier to bundled path
+    → load banner
+    → normalize logical input lines
+    → build structured, optionally colored ASCII
+    → apply the selected alignment
+    → produce aligned output
 ```
 
-The renderer is still responsible only for converting input text into ASCII-art. It does not know about alignment or terminal width.
-
-The output package receives the structured output and decides how to print or write it.
+The HTML and download handlers must not each reimplement this pipeline.
 
 ## Why This Matters
 
-Left, center, and right alignment can work on flat rows.
+The team of three splits the work **vertically**: instead of one person per layer
+(back / front / glue), each person owns a feature slice end-to-end. This lets
+everyone touch a bit of Go, HTML, templates, and the request/response flow.
 
-Justify cannot safely work on flat rows because spaces inside ASCII-art letters look the same as spaces between words.
+The risk of a vertical split is that all three touch the same `main.go`, the same
+router, and the same template. The mitigation is a shared **Phase 0** that locks
+the skeleton and the contracts above, after which each person works behind clean
+file boundaries: one handler file, one template block, and one CSS section each.
 
-Therefore, the renderer must preserve segments:
+## Phase 0 — Shared skeleton (all three together, before branches)
 
-```text
-word("hello")
-space(" ")
-word("world")
-```
+Built once, in one session, then rarely touched:
 
-Then the output package can expand only the real word gaps.
+- folder structure, `go.mod`
+- `main.go` skeleton (logger, parse template, load banners, `http.Server` with
+  timeouts, listen, graceful shutdown)
+- `internal/web/app.go` (dependencies + constructor)
+- `internal/web/routes.go` (the three routes, `404`, `405` + `Allow`)
+- `templates/index.html` skeleton with one empty `{{define}}` block per package
+- `static/style.css` with the palette variables and base layout
+
+Contracts to lock here: the structs above · the shared generator signature · the
+template block names (one per package) · the form field names · the CSS
+variables.
 
 ## Task Split
 
-### Task 01 - CLI Alignment Option
+### Package A — Core pipeline
 
-Owner: Programmer 1
-
-File: `docs/tasks/task01_cli_alignment.md`
-
-Responsibilities:
-
-- Add `Align` to `cli.Options`.
-- Parse `--align=<left|center|right|justify>`.
-- Keep flags order-flexible.
-- Reject malformed and duplicate alignment flags.
-- Add interactive alignment prompt.
-- Update CLI tests.
-
-### Task 02 - Structured Renderer
-
-Owner: Programmer 2
-
-File: `docs/tasks/task02_structured_renderer.md`
+Owner: **Aris**
+Folder: `package-a/` (explanation + cards A1–A7)
 
 Responsibilities:
 
-- Change `BuildASCII` to return structured output.
-- Preserve word and space-run segments.
-- Keep color rendering behavior.
-- Keep newline behavior.
-- Add renderer tests for segment structure and flattening.
+- Extend `renderer.NormalizeInput` for LF / CRLF / CR.
+- Build the shared generation workflow (`generate.go`).
+- Handlers for `POST /ascii-art` and `GET /`.
+- Frontend: text + banner controls, Generate, the `<pre>` output box.
+- Write the README.
 
-### Task 03 - Output Alignment and Main Integration
+### Package B — Form, validation & output
 
-Owner: Programmer 3
-
-File: `docs/tasks/task03_output_alignment_integration.md`
+Owner: **Spiros**
+Folder: `package-b/` (explanation + cards B1–B6)
 
 Responsibilities:
 
-- Add output functions for aligned writing.
-- Implement left, center, right, and justify.
-- Detect the current terminal width at output time using standard packages.
-- Try standard output, standard input, and standard error before falling back
-  to `COLUMNS`, then `80`.
-- Isolate Linux/WSL device detection and its tests in matching platform files.
-- Keep non-Linux builds compiling through a fallback platform file.
-- Use the same current-terminal width when writing aligned output to a file.
-- Treat file padding as fixed after the file is created.
-- Ignore ANSI escape sequences when measuring visible width.
-- Update `main.go` for structured output and alignment.
-- Add output and integration tests.
+- `form.go`: bounded parsing (415/413), FormState → GenerationInput validation.
+- Handler for `POST /ascii-art/download`.
+- The HTTP status-code contract.
+- Frontend: alignment radios, Clear (GET), the separate download form, errors.
+- Replace the old CLI tests in `main_test.go` with HTTP integration tests.
+
+### Package C — Color, presentation & infrastructure
+
+Owner: **Kostis**
+Folder: `package-c/` (explanation + cards C1–C8)
+
+Responsibilities:
+
+- `presenter.go`: ANSI → safe styled runs + ANSI-free plain text.
+- Color validation (`#RRGGBB` → RGB integers) and safe span rendering.
+- `middleware.go`: request logging.
+- Safe static-asset serving.
+- Frontend: `use_color`, native color input, substring, hidden width.
+- `static/app.js` width measurement; optional dark-theme toggle.
+- Final CLI cleanup (delete `internal/cli`).
 
 ## Implementation Order
 
-1. Programmer 1 adds `Align` parsing and tests.
-2. Programmer 2 replaces flat rendering with structured rendering.
-3. Programmer 3 adapts output and `main.go` to structured rendering.
-4. Run package tests while each task is in progress.
-5. Run `go test ./...`.
-6. Run manual checks for all alignments with standard, shadow, color, and file output.
+1. All three build the **Phase 0** skeleton and lock the contracts.
+2. Aris lands **A1 → A2** (extended normalizer, shared generator) early — this
+   unblocks B and C.
+3. Kostis lands **C1** (presenter) early — the Generate and Download handlers
+   need it.
+4. In parallel: A4/A5/A6, B1/B2/B4/B5, C3/C4/C5.
+5. Wire the dependent handlers: A3, then B3 (download).
+6. C6 (width JS) once A6 (output area) exists.
+7. Run package tests continuously; then `go test ./...`, `go test -race ./...`,
+   `go vet ./...`.
+8. Spiros replaces `main_test.go`; Kostis removes `internal/cli` (last, separate
+   commit); Aris writes the README.
 
 ## Manual Checks
 
-```bash
-go run . --align=left "hello" standard
-go run . --align=center "hello" standard
-go run . --align=right "hello" standard
-go run . --align=justify "hello world" standard
-go run . "hello world" shadow --align=center --color=cyan world
-go run . --output=aligned.txt --align=right "hello" standard
-```
+Browser behavior that Go tests do not cover directly:
 
-## Exact Alignment Usage Message
+- native required-field feedback on empty text;
+- color-wheel interaction and `use_color` toggle;
+- radio groups and keyboard navigation;
+- monospace spacing and terminal-like appearance;
+- one-time width measurement; horizontal scroll after narrowing the window;
+- no resize-triggered HTTP requests; regenerate at the new width on Generate;
+- Clear removes both form state and output;
+- Download prompts for `ascii-art.txt`; downloaded text is readable.
+
+## Status Codes
 
 ```text
-Usage: go run . [OPTION] [STRING] [BANNER]
-
-EX: go run . --align=<left|center|right|justify> "something" standard
+200  success (page, generation, download)
+400  empty text, unknown banner/align, invalid color, bad width, unsupported char, bad encoding
+413  body over 64 KiB
+415  unsupported media type
+404  unknown route
+405  wrong method on a known route (+ Allow header)
+500  template / presenter / unexpected failure
 ```
