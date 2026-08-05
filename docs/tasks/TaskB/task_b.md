@@ -146,7 +146,7 @@ The downloaded file is plain text: ASCII, spaces, rows, and alignment preserved;
 B calls).
 
 **Files**
-- `internal/web/handlers.go` (this handler)
+- `internal/web/download_handler.go` (this handler)
 
 **PRD** §8.3, §16.7
 
@@ -179,7 +179,7 @@ The subject and PRD both require appropriate status codes; this is a core gradin
 point. Centralising the contract here keeps the three handlers consistent.
 
 **Files**
-- `internal/web/form.go` / `handlers.go` (wherever the mapping naturally lives)
+- `internal/web/form.go`, `page_handlers.go`, and `download_handler.go`
 
 **PRD** §13.1, §13.2
 

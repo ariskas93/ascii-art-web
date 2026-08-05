@@ -24,7 +24,7 @@ present, respond.
 - [ ] A template-execution error becomes a clean `500`, not a partial response
 
 ## Meta
-- **Files:** `internal/web/handlers.go`
+- **Files:** `internal/web/page_handlers.go`
 - **PRD:** §8.1, §13.2
 - **Depends on:** A2 · B (validation) · C (presenter). Build the plain path first.
 

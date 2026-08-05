@@ -1,105 +1,90 @@
-// Package main contains end-to-end CLI wiring tests.
+// Package main contains tests for web-server startup wiring.
 package main
 
 import (
+	"io"
+	"log/slog"
+	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	webapp "ascii-art/internal/web"
 )
 
-func TestMainInvalidSeparatedAlignFlag(t *testing.T) {
-	stdout, stderr, err := runMain(t, nil, "--align", "right", "something", "standard")
+func TestNewHTTPServerConfiguration(t *testing.T) {
+	handler := http.NewServeMux()
+	server := newHTTPServer(handler)
+
+	if server.Addr != ":8080" {
+		t.Fatalf("Addr = %q, want :8080", server.Addr)
+	}
+	if server.Handler != handler {
+		t.Fatal("server did not retain the supplied handler")
+	}
+
+	timeouts := map[string]struct {
+		got  time.Duration
+		want time.Duration
+	}{
+		"ReadHeaderTimeout": {server.ReadHeaderTimeout, 5 * time.Second},
+		"ReadTimeout":       {server.ReadTimeout, 15 * time.Second},
+		"WriteTimeout":      {server.WriteTimeout, 30 * time.Second},
+		"IdleTimeout":       {server.IdleTimeout, 60 * time.Second},
+	}
+	for name, timeout := range timeouts {
+		if timeout.got != timeout.want {
+			t.Errorf("%s = %s, want %s", name, timeout.got, timeout.want)
+		}
+	}
+	if shutdownTimeout != 5*time.Second {
+		t.Errorf("shutdownTimeout = %s, want 5s", shutdownTimeout)
+	}
+}
+
+func TestLoadBundledBanners(t *testing.T) {
+	registry, err := loadBundledBanners()
+	if err != nil {
+		t.Fatalf("loadBundledBanners() error = %v", err)
+	}
+
+	for _, name := range []string{
+		webapp.BannerStandard,
+		webapp.BannerShadow,
+		webapp.BannerThinkertoy,
+	} {
+		glyphs, ok := registry[name]
+		if !ok {
+			t.Errorf("registry is missing %q", name)
+			continue
+		}
+		if len(glyphs) != 95 {
+			t.Errorf("registry[%q] has %d glyphs, want 95", name, len(glyphs))
+		}
+	}
+}
+
+func TestRunFailsBeforeListeningWhenStartupResourcesAreMissing(t *testing.T) {
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDirectory); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	err = run(logger)
 	if err == nil {
-		t.Fatalf("expected command to fail")
+		t.Fatal("run() error = nil, want missing startup resource error")
 	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
+	if !strings.Contains(err.Error(), "parse page template") {
+		t.Errorf("run() error = %q, want template initialization context", err)
 	}
-	if !strings.Contains(stderr, "Usage: go run . [OPTION] [STRING] [BANNER]") {
-		t.Fatalf("stderr = %q, want alignment usage message", stderr)
-	}
-	if !strings.Contains(stderr, "--align=<left|center|right|justify>") {
-		t.Fatalf("stderr = %q, want alignment usage message", stderr)
-	}
-}
-
-func TestMainPrintsRightAlignedASCII(t *testing.T) {
-	stdout, stderr, err := runMain(t, map[string]string{"COLUMNS": "80"}, "--align=right", "left", "standard")
-	if err != nil {
-		t.Fatalf("unexpected error: %v\nstderr: %s", err, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
-	}
-
-	rows := outputRows(stdout)
-	if len(rows) != 8 {
-		t.Fatalf("got %d output rows, want 8", len(rows))
-	}
-	for i, row := range rows {
-		if len(row) != 80 {
-			t.Fatalf("row %d length = %d, want 80", i, len(row))
-		}
-	}
-}
-
-func TestMainWritesAlignedASCIIFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "aligned.txt")
-
-	stdout, stderr, err := runMain(t, map[string]string{"COLUMNS": "80"}, "--output="+path, "--align=right", "hello", "standard")
-	if err != nil {
-		t.Fatalf("unexpected error: %v\nstderr: %s", err, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("could not read output file: %v", err)
-	}
-
-	rows := outputRows(string(data))
-	if len(rows) != 8 {
-		t.Fatalf("got %d output rows, want 8", len(rows))
-	}
-	for i, row := range rows {
-		if len(row) != 80 {
-			t.Fatalf("row %d length = %d, want 80", i, len(row))
-		}
-	}
-}
-
-// runMain executes the CLI in a subprocess so main.go wiring is tested end to end.
-func runMain(t *testing.T, env map[string]string, args ...string) (string, string, error) {
-	t.Helper()
-
-	cmdArgs := append([]string{"run", "."}, args...)
-	cmd := exec.Command("go", cmdArgs...)
-	cmd.Env = os.Environ()
-	for key, value := range env {
-		cmd.Env = append(cmd.Env, key+"="+value)
-	}
-
-	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	return stdout.String(), stderr.String(), err
-}
-
-// outputRows splits command output into rendered rows without counting the final newline.
-func outputRows(output string) []string {
-	output = strings.TrimSuffix(output, "\n")
-	if output == "" {
-		return nil
-	}
-	return strings.Split(output, "\n")
 }

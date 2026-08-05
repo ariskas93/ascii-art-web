@@ -92,7 +92,8 @@ Review imports in:
 ```text
 go.mod
 main.go
-handlers.go
+internal/web/page_handlers.go
+internal/web/download_handler.go
 internal/
 ```
 

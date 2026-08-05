@@ -20,7 +20,7 @@
 - [ ] Clear returns the default page with no result or error
 
 ## Meta
-- **Files:** `internal/web/handlers.go`
+- **Files:** `internal/web/page_handlers.go`
 - **PRD:** §8.2, §7.2
 - **Depends on:** Phase 0 template skeleton (independent of A2)
 

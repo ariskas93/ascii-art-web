@@ -1,0 +1,110 @@
+:root {
+  --page-bg: #FAF8F3;
+  --card: #FFFFFF;
+  --accent: #8F3B3B;
+  --text: #3B322A;
+  --text-muted: #7A7062;
+  --border: #E8E4DA;
+  --field-bg: #EEEDE7;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 20rem;
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--page-bg);
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font: inherit;
+}
+
+.site-frame {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: min(100% - 2rem, 69rem);
+  min-height: calc(100vh - 2rem);
+  margin: 1rem auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.page-header {
+  padding: 1.75rem 2rem 1rem;
+  text-align: center;
+}
+
+.brand {
+  color: var(--text);
+  font-size: clamp(2.25rem, 6vw, 4rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+.brand-accent {
+  color: var(--accent);
+}
+
+.app-shell {
+  width: min(100% - 2rem, 52rem);
+  margin: 0 auto;
+  padding: 1rem 0 2rem;
+}
+
+.generation-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.page-footer {
+  padding: 1rem 2rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Package A: input, generation action, and output. */
+
+/* Package B: alignment, errors, clear, and download. */
+
+/* Package C: color, width measurement, assets, and optional theme. */
+
+@media (max-width: 40rem) {
+  .site-frame {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .page-header {
+    padding-inline: 1rem;
+  }
+}

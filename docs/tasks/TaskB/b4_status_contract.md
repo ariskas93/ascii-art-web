@@ -25,7 +25,7 @@
 - [ ] Errors expose no filesystem paths, stack traces, or internals
 
 ## Meta
-- **Files:** `internal/web/form.go` / `handlers.go`
+- **Files:** `internal/web/form.go`, `page_handlers.go`, and `download_handler.go`
 - **PRD:** §13.1, §13.2
 - **Depends on:** B2 (produces error categories)
 

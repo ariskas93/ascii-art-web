@@ -110,7 +110,7 @@ everyone touch a bit of Go, HTML, templates, and the request/response flow.
 The risk of a vertical split is that all three touch the same `main.go`, the same
 router, and the same template. The mitigation is a shared **Phase 0** that locks
 the skeleton and the contracts above, after which each person works behind clean
-file boundaries: one handler file, one template block, and one CSS section each.
+handler files, named template blocks, and one CSS section each.
 
 ## Phase 0 — Shared skeleton (all three together, before branches)
 
@@ -121,11 +121,13 @@ Built once, in one session, then rarely touched:
   timeouts, listen, graceful shutdown)
 - `internal/web/app.go` (dependencies + constructor)
 - `internal/web/routes.go` (the three routes, `404`, `405` + `Allow`)
-- `templates/index.html` skeleton with one empty `{{define}}` block per package
+- `internal/web/types.go` and `response.go` (shared contracts + buffered pages)
+- separate page and download handler files
+- `templates/index.html` skeleton with an empty named block per feature region
 - `static/style.css` with the palette variables and base layout
 
 Contracts to lock here: the structs above · the shared generator signature · the
-template block names (one per package) · the form field names · the CSS
+template block names · the form field names · the CSS
 variables.
 
 ## Task Split

@@ -23,7 +23,7 @@ fixing the skeleton and the seams up front.
 ## Steps
 
 ### 0.1 — Folder structure + `go.mod`
-- [ ] Create the layout:
+- [x] Create the layout:
       ```text
       .
       ├── main.go
@@ -44,43 +44,46 @@ fixing the skeleton and the seams up front.
           └── web/
               ├── app.go
               ├── routes.go
-              ├── handlers.go
+              ├── types.go
+              ├── response.go
+              ├── page_handlers.go
+              ├── download_handler.go
               ├── form.go
               ├── generate.go
               ├── presenter.go
               └── middleware.go
       ```
-- [ ] Confirm `go.mod` module path and that `go build ./...` compiles the skeleton
+- [x] Confirm `go.mod` module path and that `go build ./...` compiles the skeleton
 
 ### 0.2 — `main.go` skeleton
-- [ ] Construct the logger
-- [ ] Parse `templates/index.html` once
-- [ ] Load and validate all three banners
-- [ ] Construct the web application (inject template, banner registry, logger)
-- [ ] Configure `http.Server` with the timeouts (see contract below)
-- [ ] Start listening; handle graceful shutdown (5s deadline)
-- [ ] Non-zero exit if any startup resource is missing/invalid
+- [x] Construct the logger
+- [x] Parse `templates/index.html` once
+- [x] Load and validate all three banners
+- [x] Construct the web application (inject template, banner registry, logger)
+- [x] Configure `http.Server` with the timeouts (see contract below)
+- [x] Start listening; handle graceful shutdown (5s deadline)
+- [x] Non-zero exit if any startup resource is missing/invalid
 
 ### 0.3 — `internal/web/app.go`
-- [ ] Application struct holding immutable dependencies + constructor
+- [x] Application struct holding immutable dependencies + constructor
 
 ### 0.4 — `internal/web/routes.go`
-- [ ] Register the three routes (see contract below)
-- [ ] `404` for unknown routes; `405` + `Allow` for wrong methods
+- [x] Register the three routes (see contract below)
+- [x] `404` for unknown routes; `405` + `Allow` for wrong methods
 
 ### 0.5 — `templates/index.html` skeleton
-- [ ] One empty `{{define}}` block per package (names below)
-- [ ] No feature markup yet — just the shell that calls the blocks
+- [x] One empty `{{define}}` block per agreed feature region (names below)
+- [x] No feature markup yet — just the shell that calls the blocks
 
 ### 0.6 — `static/style.css` base
-- [ ] Define the palette CSS variables (below)
-- [ ] Base layout only; each package styles its own controls later
+- [x] Define the palette CSS variables (below)
+- [x] Base layout only; each package styles its own controls later
 
 ### 0.7 — Lock the contracts
-- [ ] Paste the structs (below) into the code
-- [ ] Agree the generator signature (below)
-- [ ] Agree the template block names (below)
-- [ ] Confirm the form field names (below)
+- [x] Paste the structs (below) into the code
+- [x] Agree the generator signature (below)
+- [x] Agree the template block names (below)
+- [x] Confirm the form field names (below)
 
 **Definition of Done:** `go build ./...` compiles; the server starts, serves an
 empty shell page, and shuts down gracefully; all contracts below exist in code
@@ -193,6 +196,10 @@ GET  /static/app.js       → static asset                        [C]
 - Unknown route → `404`
 - Wrong method on a known route → `405` + `Allow` header
 
+During Phase 0, the two POST routes return a temporary `501 Not Implemented`.
+Their real handlers replace those explicit placeholders in Packages A and B.
+Safe serving for the two locked static URLs is implemented by Package C.
+
 ---
 
 ## Contract 4 — Form field names
@@ -213,18 +220,26 @@ width       hidden input, integer 20–300 (fallback 80)  [C]
 
 ## Contract 5 — Template block names
 
-One block per package inside `index.html`, so no two people edit the same region:
+Blocks are split by semantic action as well as owner. This keeps keyboard order
+logical, prevents nested forms, and lets CSS place related actions together
+without coupling their HTTP behavior:
 
 ```text
-{{define "input_controls"}}   → text + banner + Generate      [A]
-{{define "output_box"}}       → the <pre> result area         [A]
-{{define "align_controls"}}   → alignment radios              [B]
-{{define "actions"}}          → Clear + download form         [B]
-{{define "color_controls"}}   → use_color + color + substring [C]
-{{define "width_field"}}      → hidden width input            [C]
+{{define "page"}}             → shared HTML shell + form boundary
+{{define "input_controls"}}   → text + banner                     [A]
+{{define "generate_action"}}  → Generate submit button            [A]
+{{define "output_box"}}       → the <pre> result area               [A]
+{{define "align_controls"}}   → alignment radios                  [B]
+{{define "form_error"}}       → safe validation feedback           [B]
+{{define "clear_action"}}     → Clear link to GET /                [B]
+{{define "download_action"}}  → separate download form             [B]
+{{define "color_controls"}}   → use_color + color + substring     [C]
+{{define "width_field"}}      → hidden width input                [C]
+{{define "theme_control"}}    → optional client-side theme control [C]
 ```
 
-(Names can change — the rule is: one block per owner, agreed here.)
+The Generate button and Clear link live within the generation form. Download
+owns a separate form outside it; HTML forms are never nested.
 
 ---
 

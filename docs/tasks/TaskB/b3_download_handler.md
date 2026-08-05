@@ -24,7 +24,7 @@ generator (A2), then returns a file attachment.
 - [ ] Requires no session state
 
 ## Meta
-- **Files:** `internal/web/handlers.go`
+- **Files:** `internal/web/download_handler.go`
 - **PRD:** §8.3, §16.7
 - **Depends on:** A2 · C plain-text presenter · B1/B2
 

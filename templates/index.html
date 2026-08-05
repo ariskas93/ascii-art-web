@@ -1,0 +1,51 @@
+{{define "page"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ASCII Art Web</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div class="site-frame">
+    <header class="page-header">
+      <a class="brand" href="/" aria-label="ASCII Art Web home">
+        <span>ascii</span><span class="brand-accent">-art</span>
+      </a>
+    </header>
+
+    <main class="app-shell">
+      <form class="generation-form" action="/ascii-art" method="post">
+        {{template "input_controls" .}}
+        {{template "color_controls" .}}
+        {{template "align_controls" .}}
+        {{template "width_field" .}}
+        {{template "form_error" .}}
+        <div class="primary-actions">
+          {{template "generate_action" .}}
+          {{template "clear_action" .}}
+        </div>
+      </form>
+
+      {{template "theme_control" .}}
+      {{template "output_box" .}}
+      {{template "download_action" .}}
+    </main>
+
+    <footer class="page-footer">ASCII Art Web</footer>
+  </div>
+</body>
+</html>
+{{end}}
+
+{{define "input_controls"}}{{end}}
+{{define "generate_action"}}{{end}}
+{{define "output_box"}}{{end}}
+{{define "align_controls"}}{{end}}
+{{define "form_error"}}{{end}}
+{{define "clear_action"}}{{end}}
+{{define "download_action"}}{{end}}
+{{define "color_controls"}}{{end}}
+{{define "width_field"}}{{end}}
+{{define "theme_control"}}{{end}}

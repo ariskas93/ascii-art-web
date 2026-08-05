@@ -145,7 +145,7 @@ alignment logic itself.
   clean `500` instead of a half-written response
 
 **Files**
-- `internal/web/handlers.go` (this handler)
+- `internal/web/page_handlers.go` (this handler)
 
 **PRD** §8.1, §13.2
 
@@ -173,7 +173,7 @@ result = absent, error = absent
 ```
 
 **Files**
-- `internal/web/handlers.go` (this handler)
+- `internal/web/page_handlers.go` (this handler)
 
 **PRD** §8.2, §7.2
 

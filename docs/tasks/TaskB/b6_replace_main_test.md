@@ -1,20 +1,21 @@
 # Card B6 — Replace `main_test.go`
 
 **Package:** B (form, validation & output) · **Owner:** Spiros
-**Priority:** 🟡 near the end
+**Priority:** 🟡 expand near the end
 
 ---
 
-**Context:** old CLI subprocess tests no longer describe the product once
-`main.go` is a server. Replace with HTTP integration tests.
+**Context:** Phase 0 removed the obsolete CLI subprocess tests when `main.go`
+became a server and added startup/server-contract coverage. Expand that baseline
+with complete HTTP integration tests once the feature handlers exist.
 
 ## Steps
-- [ ] Remove the CLI subprocess integration tests
-- [ ] Add HTTP integration tests via `httptest`
+- [x] Remove the CLI subprocess integration tests (completed in Phase 0)
+- [ ] Expand HTTP integration tests via `httptest`
 - [ ] Do NOT rewrite old tests to pretend CLI is still supported
 
 ## Acceptance criteria
-- [ ] Obsolete root CLI tests are replaced when `main.go` becomes a server
+- [x] Obsolete root CLI tests are replaced when `main.go` becomes a server
 - [ ] HTTP behavior is testable without opening a network port
 
 ## Meta
@@ -22,8 +23,8 @@
 - **PRD:** §4.2
 - **Depends on:** `main.go` = server (Phase 0) + handlers exist
 
-**Definition of Done:** `main_test.go` contains HTTP integration tests; no CLI
-pretence remains.
+**Definition of Done:** the Phase 0 server tests are expanded with end-to-end
+generation, validation, and download coverage; no CLI pretence remains.
 
 ---
 

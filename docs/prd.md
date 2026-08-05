@@ -188,8 +188,11 @@ The web application uses the following initial organization:
     ├── renderer/
     └── web/
         ├── app.go
+        ├── types.go
         ├── routes.go
-        ├── handlers.go
+        ├── response.go
+        ├── page_handlers.go
+        ├── download_handler.go
         ├── form.go
         ├── generate.go
         ├── presenter.go
