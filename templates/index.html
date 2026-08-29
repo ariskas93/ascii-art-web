@@ -39,9 +39,59 @@
 </html>
 {{end}}
 
-{{define "input_controls"}}{{end}}
-{{define "generate_action"}}{{end}}
-{{define "output_box"}}{{end}}
+{{define "input_controls"}}
+<div class="text-field">
+  <label class="field-label" for="text">Text</label>
+  <textarea
+    id="text"
+    name="text"
+    class="text-input"
+    rows="4"
+    maxlength="4096"
+    required
+    spellcheck="false"
+    placeholder="Type something">{{.Form.Text}}</textarea>
+</div>
+
+<fieldset class="option-group">
+  <legend class="field-label">Banner</legend>
+  <div class="option-list">
+    <label class="option">
+      <input type="radio" name="banner" value="standard"
+        {{if eq .Form.Banner "standard"}}checked{{end}}>
+      <span>standard</span>
+    </label>
+    <label class="option">
+      <input type="radio" name="banner" value="shadow"
+        {{if eq .Form.Banner "shadow"}}checked{{end}}>
+      <span>shadow</span>
+    </label>
+    <label class="option">
+      <input type="radio" name="banner" value="thinkertoy"
+        {{if eq .Form.Banner "thinkertoy"}}checked{{end}}>
+      <span>thinkertoy</span>
+    </label>
+  </div>
+</fieldset>
+{{end}}
+
+{{define "generate_action"}}
+<button type="submit" class="button button-primary">Generate</button>
+{{end}}
+
+{{define "output_box"}}
+<section class="output-panel" aria-label="Generated ASCII art">
+  <div class="output-head">
+    <span class="output-title">Output</span>
+    {{if .HasResult}}<span class="output-meta">{{.RenderedWidth}} columns</span>{{end}}
+  </div>
+  <div class="terminal-body">
+    <pre class="terminal-output">{{if .HasResult}}{{range .Output}}{{range .Runs}}{{.Text}}{{end}}
+{{end}}{{end}}</pre>
+  </div>
+</section>
+{{end}}
+
 {{define "align_controls"}}{{end}}
 {{define "form_error"}}{{end}}
 {{define "clear_action"}}{{end}}
