@@ -54,9 +54,125 @@ func TestHomeSelectsDefaultBanner(t *testing.T) {
 		t.Error("standard banner is not selected by default")
 	}
 
-	if strings.Count(body, "checked") != 1 {
-		t.Errorf("checked appears %d times, want exactly one selected banner",
-			strings.Count(body, "checked"))
+	shadow := strings.Index(body, `value="shadow"`)
+	if shadow < 0 {
+		t.Fatal("shadow banner option is missing")
+	}
+	bannerControls := body[standard:shadow]
+	if strings.Count(bannerControls, "checked") != 1 {
+		t.Errorf("banner controls contain %d checked attributes, want one",
+			strings.Count(bannerControls, "checked"))
+	}
+}
+
+func TestHomeContainsAlignmentAndClearControls(t *testing.T) {
+	body := getHome(t).Body.String()
+
+	for _, fragment := range []string{
+		`name="align" value="left" required`,
+		`name="align" value="center"`,
+		`name="align" value="right"`,
+		`name="align" value="justify"`,
+		`class="button button-secondary" href="/">Clear</a>`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Errorf("default page does not contain %q", fragment)
+		}
+	}
+
+	left := strings.Index(body, `name="align" value="left"`)
+	center := strings.Index(body, `name="align" value="center"`)
+	if left < 0 || center < 0 {
+		t.Fatal("alignment controls are incomplete")
+	}
+	if got := strings.Count(body[left:center], "checked"); got != 1 {
+		t.Errorf("left alignment section contains %d checked attributes, want one", got)
+	}
+}
+
+func TestHomeHasNoErrorOrDownloadForm(t *testing.T) {
+	body := getHome(t).Body.String()
+
+	if strings.Contains(body, `role="alert"`) {
+		t.Error("default page contains an error message")
+	}
+	if strings.Contains(body, `action="/ascii-art/download"`) {
+		t.Error("default page contains a download form before generation")
+	}
+}
+
+func TestPagePreservesErrorStateSafely(t *testing.T) {
+	data := PageData{
+		Form: FormState{
+			Text:      `<script>alert("text")</script>`,
+			Banner:    BannerShadow,
+			Color:     "#ff0000",
+			Substring: `<img src=x onerror=alert(1)>`,
+			Alignment: "right",
+			Width:     "80",
+		},
+		Error: `Invalid <strong>input</strong>`,
+	}
+	body := renderPageForTest(t, data)
+
+	for _, unsafe := range []string{"<script>", "<img", "<strong>"} {
+		if strings.Contains(body, unsafe) {
+			t.Errorf("rendered page contains unescaped markup %q", unsafe)
+		}
+	}
+	for _, escaped := range []string{"&lt;script&gt;", "&lt;strong&gt;"} {
+		if !strings.Contains(body, escaped) {
+			t.Errorf("rendered page does not preserve escaped value %q", escaped)
+		}
+	}
+	if !strings.Contains(body, `role="alert"`) {
+		t.Error("rendered page does not expose the error as an alert")
+	}
+}
+
+func TestSuccessfulPageContainsSeparateDownloadSnapshot(t *testing.T) {
+	data := PageData{
+		Form: FormState{
+			Text:      "Hello\nWorld",
+			Banner:    BannerThinkertoy,
+			UseColor:  true,
+			Color:     "#12abEF",
+			Substring: "lo",
+			Alignment: "center",
+			Width:     "80",
+		},
+		HasResult:     true,
+		RenderedWidth: 120,
+	}
+	body := renderPageForTest(t, data)
+
+	generationStart := strings.Index(body, `class="generation-form"`)
+	downloadStart := strings.Index(body, `action="/ascii-art/download"`)
+	if generationStart < 0 || downloadStart < 0 {
+		t.Fatal("page does not contain both expected forms")
+	}
+	relativeGenerationEnd := strings.Index(body[generationStart:], "</form>")
+	if relativeGenerationEnd < 0 {
+		t.Fatal("generation form has no closing tag")
+	}
+	generationEnd := generationStart + relativeGenerationEnd
+	if downloadStart < generationEnd {
+		t.Error("download form is nested inside the generation form")
+	}
+
+	for _, fragment := range []string{
+		`<textarea name="text" hidden>Hello`,
+		`World</textarea>`,
+		`name="banner" value="thinkertoy"`,
+		`name="use_color" value="on"`,
+		`name="color" value="#12abEF"`,
+		`name="substring" value="lo"`,
+		`name="align" value="center"`,
+		`name="width" value="120"`,
+	} {
+		if !strings.Contains(body[downloadStart:], fragment) {
+			t.Errorf("download snapshot does not contain %q", fragment)
+		}
 	}
 }
 
@@ -105,4 +221,15 @@ func TestClearReturnsTheDefaultPage(t *testing.T) {
 	if first != second {
 		t.Error("clearing the page does not reproduce the default page")
 	}
+}
+
+func renderPageForTest(t *testing.T, data PageData) string {
+	t.Helper()
+	app := newTestApp(t, parseProductionTemplate(t))
+	response := httptest.NewRecorder()
+	app.renderPage(response, http.StatusOK, data)
+	if response.Code != http.StatusOK {
+		t.Fatalf("renderPage() status = %d, want 200", response.Code)
+	}
+	return response.Body.String()
 }

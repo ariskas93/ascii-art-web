@@ -92,10 +92,56 @@
 </section>
 {{end}}
 
-{{define "align_controls"}}{{end}}
-{{define "form_error"}}{{end}}
-{{define "clear_action"}}{{end}}
-{{define "download_action"}}{{end}}
+{{define "align_controls"}}
+<fieldset class="option-group">
+  <legend class="field-label">Alignment</legend>
+  <div class="option-list">
+    <label class="option">
+      <input type="radio" name="align" value="left" required
+        {{if eq .Form.Alignment "left"}}checked{{end}}>
+      <span>left</span>
+    </label>
+    <label class="option">
+      <input type="radio" name="align" value="center"
+        {{if eq .Form.Alignment "center"}}checked{{end}}>
+      <span>center</span>
+    </label>
+    <label class="option">
+      <input type="radio" name="align" value="right"
+        {{if eq .Form.Alignment "right"}}checked{{end}}>
+      <span>right</span>
+    </label>
+    <label class="option">
+      <input type="radio" name="align" value="justify"
+        {{if eq .Form.Alignment "justify"}}checked{{end}}>
+      <span>justify</span>
+    </label>
+  </div>
+</fieldset>
+{{end}}
+
+{{define "form_error"}}
+{{if .Error}}<p class="form-error" role="alert">{{.Error}}</p>{{end}}
+{{end}}
+
+{{define "clear_action"}}
+<a class="button button-secondary" href="/">Clear</a>
+{{end}}
+
+{{define "download_action"}}
+{{if .HasResult}}
+<form class="download-form" action="/ascii-art/download" method="post">
+  <textarea name="text" hidden>{{.Form.Text}}</textarea>
+  <input type="hidden" name="banner" value="{{.Form.Banner}}">
+  {{if .Form.UseColor}}<input type="hidden" name="use_color" value="on">{{end}}
+  <input type="hidden" name="color" value="{{.Form.Color}}">
+  <input type="hidden" name="substring" value="{{.Form.Substring}}">
+  <input type="hidden" name="align" value="{{.Form.Alignment}}">
+  <input type="hidden" name="width" value="{{.RenderedWidth}}">
+  <button type="submit" class="button button-secondary">Download</button>
+</form>
+{{end}}
+{{end}}
 {{define "color_controls"}}{{end}}
 {{define "width_field"}}{{end}}
 {{define "theme_control"}}{{end}}
