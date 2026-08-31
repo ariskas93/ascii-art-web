@@ -90,6 +90,31 @@ func TestHomeContainsAlignmentAndClearControls(t *testing.T) {
 	}
 }
 
+func TestHomeContainsColorSubstringAndWidthControls(t *testing.T) {
+	body := getHome(t).Body.String()
+
+	for _, fragment := range []string{
+		`type="checkbox" name="use_color"`,
+		`id="color" type="color" name="color" value="#ff0000"`,
+		`id="substring" type="text" name="substring"`,
+		`maxlength="4096"`,
+		`type="hidden" name="width" value="80"`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Errorf("default page does not contain %q", fragment)
+		}
+	}
+
+	useColor := strings.Index(body, `name="use_color"`)
+	if useColor < 0 {
+		t.Fatal("use_color checkbox is missing")
+	}
+	window := body[useColor:min(useColor+80, len(body))]
+	if strings.Contains(window, "checked") {
+		t.Error("use_color checkbox is checked by default")
+	}
+}
+
 func TestHomeHasNoErrorOrDownloadForm(t *testing.T) {
 	body := getHome(t).Body.String()
 
@@ -127,6 +152,40 @@ func TestPagePreservesErrorStateSafely(t *testing.T) {
 	}
 	if !strings.Contains(body, `role="alert"`) {
 		t.Error("rendered page does not expose the error as an alert")
+	}
+}
+
+func TestPageRendersColoredRunsWithSafeRGBSpan(t *testing.T) {
+	data := PageData{
+		Color: SelectedColor{
+			Enabled: true,
+			Hex:     "#aa10ff",
+			Red:     170,
+			Green:   16,
+			Blue:    255,
+		},
+		Output: []StyledLine{
+			{Runs: []StyledRun{
+				{Text: "<A>", Colored: true},
+				{Text: "&B", Colored: false},
+			}},
+		},
+		HasResult:     true,
+		RenderedWidth: 80,
+	}
+	body := renderPageForTest(t, data)
+
+	if !strings.Contains(body, `style="color: rgb(170, 16, 255)"`) {
+		t.Errorf("rendered page does not contain the validated RGB style: %s", body)
+	}
+	if !strings.Contains(body, `&lt;A&gt;`) {
+		t.Error("colored run text was not HTML-escaped")
+	}
+	if !strings.Contains(body, `&amp;B`) {
+		t.Error("uncolored run text was not HTML-escaped")
+	}
+	if strings.Contains(body, `<A>`) {
+		t.Error("colored run text rendered as raw HTML")
 	}
 }
 

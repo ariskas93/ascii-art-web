@@ -86,7 +86,7 @@
     {{if .HasResult}}<span class="output-meta">{{.RenderedWidth}} columns</span>{{end}}
   </div>
   <div class="terminal-body">
-    <pre class="terminal-output">{{if .HasResult}}{{range .Output}}{{range .Runs}}{{.Text}}{{end}}
+    <pre class="terminal-output">{{if .HasResult}}{{$color := .Color}}{{range .Output}}{{range .Runs}}{{if .Colored}}<span style="color: rgb({{$color.Red}}, {{$color.Green}}, {{$color.Blue}})">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}
 {{end}}{{end}}</pre>
   </div>
 </section>
@@ -142,6 +142,28 @@
 </form>
 {{end}}
 {{end}}
-{{define "color_controls"}}{{end}}
-{{define "width_field"}}{{end}}
+{{define "color_controls"}}
+<fieldset class="option-group">
+  <legend class="field-label">Color</legend>
+  <div class="option-list">
+    <label class="option">
+      <input type="checkbox" name="use_color" {{if .Form.UseColor}}checked{{end}}>
+      <span>Use color</span>
+    </label>
+
+    <label class="option">
+      <span>Color</span>
+      <input id="color" type="color" name="color" value="{{.Form.Color}}">
+    </label>
+
+    <label class="option">
+      <span>Substring</span>
+      <input id="substring" type="text" name="substring" value="{{.Form.Substring}}" maxlength="4096">
+    </label>
+  </div>
+</fieldset>
+{{end}}
+{{define "width_field"}}
+<input type="hidden" name="width" value="{{.Form.Width}}">
+{{end}}
 {{define "theme_control"}}{{end}}
