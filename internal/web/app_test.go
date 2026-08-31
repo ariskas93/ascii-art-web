@@ -1,11 +1,13 @@
 package web
 
 import (
+	"bytes"
 	"html/template"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -199,6 +201,54 @@ func TestStaticAssetRoutesServeOnlyKnownFiles(t *testing.T) {
 				t.Errorf("response body does not contain %q", test.wantBody)
 			}
 		})
+	}
+}
+
+func TestRequestLoggingMiddlewareRecordsSafeMetadata(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	app, err := NewApp(parseProductionTemplate(t), testBannerRegistry(), logger)
+	if err != nil {
+		t.Fatalf("NewApp() error = %v", err)
+	}
+
+	values := url.Values{
+		"text":      {"secret text should not be logged"},
+		"banner":    {BannerShadow},
+		"substring": {"hidden substring"},
+		"align":     {"left"},
+		"width":     {"80"},
+		"color":     {"#ff0000"},
+	}
+	request := httptest.NewRequest(http.MethodPost, "/ascii-art", strings.NewReader(values.Encode()))
+	request.Header.Set("Content-Type", formMediaType)
+	request.Header.Set("Cookie", "session=secret-cookie")
+	response := httptest.NewRecorder()
+
+	app.Routes().ServeHTTP(response, request)
+
+	output := logs.String()
+	for _, fragment := range []string{
+		"msg=\"http request\"",
+		"method=POST",
+		"path=/ascii-art",
+		"status=501",
+		"duration=",
+	} {
+		if !strings.Contains(output, fragment) {
+			t.Errorf("log output does not contain safe field %q: %s", fragment, output)
+		}
+	}
+	for _, unsafe := range []string{
+		"secret text should not be logged",
+		"hidden substring",
+		"secret-cookie",
+		"session=",
+		values.Encode(),
+	} {
+		if strings.Contains(output, unsafe) {
+			t.Errorf("log output contains unsafe request data %q: %s", unsafe, output)
+		}
 	}
 }
 
