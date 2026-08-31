@@ -2,6 +2,7 @@ package web
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 )
 
@@ -83,6 +84,30 @@ func isSupportedANSIColor(sequence string) bool {
 	case "\033[38;5;208m":
 		return true
 	default:
+		return isSupportedTrueColorSequence(sequence)
+	}
+}
+
+func isSupportedTrueColorSequence(sequence string) bool {
+	prefix := "\033[38;2;"
+	if !strings.HasPrefix(sequence, prefix) {
 		return false
 	}
+	body := strings.TrimPrefix(sequence, prefix)
+	body = strings.TrimSuffix(body, "m")
+	parts := strings.Split(body, ";")
+	if len(parts) != 3 {
+		return false
+	}
+	for i := 0; i < len(parts); i++ {
+		part := parts[i]
+		value, err := strconv.Atoi(part)
+		if err != nil {
+			return false
+		}
+		if value < 0 || value > 255 {
+			return false
+		}
+	}
+	return true
 }
