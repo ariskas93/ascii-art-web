@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -126,6 +127,95 @@ func TestRoutesPhaseZeroContract(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStaticAssetRoutesServeOnlyKnownFiles(t *testing.T) {
+	app := newTestApp(t, parseProductionTemplate(t))
+	handler := app.Routes()
+	chdirToRepoRoot(t)
+
+	tests := []struct {
+		name        string
+		method      string
+		path        string
+		wantStatus  int
+		wantAllowed string
+		wantType    string
+		wantBody    string
+	}{
+		{
+			name:       "style css",
+			method:     http.MethodGet,
+			path:       "/static/style.css",
+			wantStatus: http.StatusOK,
+			wantType:   "text/css; charset=utf-8",
+			wantBody:   ":root",
+		},
+		{
+			name:       "app js",
+			method:     http.MethodGet,
+			path:       "/static/app.js",
+			wantStatus: http.StatusOK,
+			wantType:   "text/javascript; charset=utf-8",
+			wantBody:   "measureColumns",
+		},
+		{
+			name:       "static directory not exposed",
+			method:     http.MethodGet,
+			path:       "/static/",
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "unexpected static file not exposed",
+			method:     http.MethodGet,
+			path:       "/static/missing.js",
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:        "wrong static method",
+			method:      http.MethodPost,
+			path:        "/static/app.js",
+			wantStatus:  http.StatusMethodNotAllowed,
+			wantAllowed: http.MethodGet,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(test.method, test.path, nil)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			if response.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d", response.Code, test.wantStatus)
+			}
+			if test.wantAllowed != "" && !headerContainsToken(response.Header().Get("Allow"), test.wantAllowed) {
+				t.Errorf("Allow = %q, want it to contain %q", response.Header().Get("Allow"), test.wantAllowed)
+			}
+			if test.wantType != "" && response.Header().Get("Content-Type") != test.wantType {
+				t.Errorf("Content-Type = %q, want %q", response.Header().Get("Content-Type"), test.wantType)
+			}
+			if test.wantBody != "" && !strings.Contains(response.Body.String(), test.wantBody) {
+				t.Errorf("response body does not contain %q", test.wantBody)
+			}
+		})
+	}
+}
+
+func chdirToRepoRoot(t *testing.T) {
+	t.Helper()
+	originalDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir("../.."); err != nil {
+		t.Fatalf("change working directory to repo root: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalDirectory); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
 }
 
 func TestHomeReturnsCompleteHTMLShell(t *testing.T) {
