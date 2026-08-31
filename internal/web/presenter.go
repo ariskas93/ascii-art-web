@@ -111,3 +111,30 @@ func isSupportedTrueColorSequence(sequence string) bool {
 	}
 	return true
 }
+
+func selectedColorFromHex(hex string) (SelectedColor, error) {
+	if !isWebHexColor(hex) {
+		return SelectedColor{}, errors.New("unsupported hex color")
+
+	}
+	red, err := strconv.ParseUint(hex[1:3], 16, 8)
+	if err != nil {
+		return SelectedColor{}, errors.New("unsupported hex color")
+	}
+	green, err := strconv.ParseUint(hex[3:5], 16, 8)
+	if err != nil {
+		return SelectedColor{}, errors.New("uunsupported hex color")
+	}
+	blue, err := strconv.ParseUint(hex[5:7], 16, 8)
+	if err != nil {
+		return SelectedColor{}, errors.New("unsupported hex color")
+	}
+
+	return SelectedColor{
+		Enabled: true,
+		Hex:     hex,
+		Red:     int(red),
+		Green:   int(green),
+		Blue:    int(blue),
+	}, nil
+}

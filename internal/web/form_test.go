@@ -240,8 +240,9 @@ func TestValidateFormColorBehavior(t *testing.T) {
 		if !got.Color.Enabled || got.Color.Hex != state.Color {
 			t.Errorf("enabled color = %#v, want enabled hex %q", got.Color, state.Color)
 		}
-		if got.Color.Red != 0 || got.Color.Green != 0 || got.Color.Blue != 0 {
-			t.Errorf("B2 converted RGB values owned by Package C: %#v", got.Color)
+		if got.Color.Red != 170 || got.Color.Green != 16 || got.Color.Blue != 255 {
+			t.Errorf("enabled color RGB = %d,%d,%d, want 170,16,255",
+				got.Color.Red, got.Color.Green, got.Color.Blue)
 		}
 	})
 }

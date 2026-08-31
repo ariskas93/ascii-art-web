@@ -154,9 +154,11 @@ func validateForm(state FormState) (GenerationInput, error) {
 		if !isWebHexColor(state.Color) {
 			return GenerationInput{}, badFormRequest("Select a valid color in #RRGGBB format.")
 		}
-		// RGB conversion belongs to Package C. B validates the public web
-		// format and passes the trusted hexadecimal representation onward.
-		color.Hex = state.Color
+		convertedColor, err := selectedColorFromHex(state.Color)
+		if err != nil {
+			return GenerationInput{}, badFormRequest("Select a valid color in #RRGGBB format.")
+		}
+		color = convertedColor
 	}
 
 	return GenerationInput{
