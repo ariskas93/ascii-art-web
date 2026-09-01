@@ -115,6 +115,22 @@ func TestHomeContainsColorSubstringAndWidthControls(t *testing.T) {
 	}
 }
 
+func TestHomeContainsThemeToggle(t *testing.T) {
+	body := getHome(t).Body.String()
+
+	for _, fragment := range []string{
+		`type="button"`,
+		`class="button button-secondary theme-toggle"`,
+		`data-theme-toggle`,
+		`aria-pressed="false"`,
+		`Dark theme`,
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Errorf("default page does not contain %q", fragment)
+		}
+	}
+}
+
 func TestHomeHasNoErrorOrDownloadForm(t *testing.T) {
 	body := getHome(t).Body.String()
 

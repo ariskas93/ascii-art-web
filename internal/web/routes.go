@@ -14,9 +14,11 @@ func (app *App) Routes() http.Handler {
 }
 
 func (app *App) handleStyleCSS(w http.ResponseWriter, r *http.Request) {
+	// Serve a fixed asset path only; no browser value is joined into a path.
 	http.ServeFile(w, r, "static/style.css")
 }
 
 func (app *App) handleAppJS(w http.ResponseWriter, r *http.Request) {
+	// Serve a fixed asset path only; no browser value is joined into a path.
 	http.ServeFile(w, r, "static/app.js")
 }

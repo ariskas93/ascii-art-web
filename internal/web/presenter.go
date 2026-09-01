@@ -9,6 +9,8 @@ import (
 // Present converts renderer-controlled ANSI text into safe browser runs and
 // ANSI-free download text. Package C implements it after Phase 0.
 func Present(g GeneratedASCII) (lines []StyledLine, plain string, err error) {
+	// Keep browser runs and download text in sync: visible bytes go to both,
+	// while ANSI control bytes are interpreted and skipped.
 	var plainBuilder strings.Builder
 	var runBuilder strings.Builder
 	var currentLine StyledLine
@@ -18,6 +20,8 @@ func Present(g GeneratedASCII) (lines []StyledLine, plain string, err error) {
 		if runBuilder.Len() == 0 {
 			return
 		}
+		// Flush before any color-state change so the completed run keeps the
+		// state it was collected under.
 		currentLine.Runs = append(currentLine.Runs, StyledRun{
 			Text:    runBuilder.String(),
 			Colored: colored,
@@ -41,6 +45,8 @@ func Present(g GeneratedASCII) (lines []StyledLine, plain string, err error) {
 			continue
 		}
 		if ch == '\033' {
+			// ANSI is renderer-owned control data. It toggles Colored state,
+			// but must never leak into HTML text or download output.
 			end := i + 1
 			for end < len(text) && text[end] != 'm' {
 				end++
@@ -76,6 +82,7 @@ func Present(g GeneratedASCII) (lines []StyledLine, plain string, err error) {
 }
 
 func isSupportedANSIColor(sequence string) bool {
+	// Accept only the exact foreground sequences the renderer can emit.
 	switch sequence {
 	case "\033[30m", "\033[31m", "\033[32m", "\033[33m":
 		return true
@@ -93,6 +100,7 @@ func isSupportedTrueColorSequence(sequence string) bool {
 	if !strings.HasPrefix(sequence, prefix) {
 		return false
 	}
+	// Truecolor uses three decimal RGB components after the fixed prefix.
 	body := strings.TrimPrefix(sequence, prefix)
 	body = strings.TrimSuffix(body, "m")
 	parts := strings.Split(body, ";")
@@ -115,15 +123,16 @@ func isSupportedTrueColorSequence(sequence string) bool {
 func selectedColorFromHex(hex string) (SelectedColor, error) {
 	if !isWebHexColor(hex) {
 		return SelectedColor{}, errors.New("unsupported hex color")
-
 	}
+	// Each #RRGGBB pair is parsed as one 8-bit channel before the values are
+	// used in inline CSS.
 	red, err := strconv.ParseUint(hex[1:3], 16, 8)
 	if err != nil {
 		return SelectedColor{}, errors.New("unsupported hex color")
 	}
 	green, err := strconv.ParseUint(hex[3:5], 16, 8)
 	if err != nil {
-		return SelectedColor{}, errors.New("uunsupported hex color")
+		return SelectedColor{}, errors.New("unsupported hex color")
 	}
 	blue, err := strconv.ParseUint(hex[5:7], 16, 8)
 	if err != nil {

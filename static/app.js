@@ -4,9 +4,12 @@ const maxWidth = 300;
 const sampleText = "MMMMMMMMMM";
 
 document.addEventListener("DOMContentLoaded", function () {
+    // Resolve the few elements C owns once. Missing elements simply leave the
+    // server-side 80-column fallback in place.
     const form = document.querySelector(".generation-form");
     const widthInput = document.querySelector('input[name="width"]');
     const terminal = document.querySelector(".terminal-output");
+    const themeToggle = document.querySelector("[data-theme-toggle]");
 
     if (!form || !widthInput || !terminal) {
         return;
@@ -17,9 +20,28 @@ document.addEventListener("DOMContentLoaded", function () {
     form.addEventListener("submit", function () {
         widthInput.value = String(measureColumns(terminal));
     });
+    if (themeToggle) {
+        themeToggle.addEventListener("click", function () {
+            // The CSS listens to html[data-theme="dark"], so the button only
+            // flips that attribute and its own accessible pressed state.
+            const isDark = document.documentElement.dataset.theme !== "dark";
+
+            if (isDark) {
+                document.documentElement.dataset.theme = "dark";
+                themeToggle.setAttribute("aria-pressed", "true");
+                themeToggle.textContent = "Light theme";
+            } else {
+                delete document.documentElement.dataset.theme;
+                themeToggle.setAttribute("aria-pressed", "false");
+                themeToggle.textContent = "Dark theme";
+            }
+        });
+    }
 });
 
 function measureColumns(terminal) {
+    // Measure at submit time only; resizing later does not trigger requests or
+    // realign an already-rendered snapshot.
     const containerWidth = terminal.clientWidth;
     const charWidth = measureCharacterWidth(terminal);
     
@@ -44,6 +66,8 @@ function clampWidth(columns) {
 }
 
 function measureCharacterWidth(terminal) {
+    // A hidden probe uses the terminal font so pixel width can be converted to
+    // text columns without rendering or aligning any ASCII art.
     const probe = document.createElement("span");
     probe.style.position = "absolute";
     probe.style.visibility = "hidden";

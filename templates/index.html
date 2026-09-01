@@ -86,6 +86,7 @@
     {{if .HasResult}}<span class="output-meta">{{.RenderedWidth}} columns</span>{{end}}
   </div>
   <div class="terminal-body">
+    {{/* Colored text stays escaped; only validated RGB integers enter the fixed style. */}}
     <pre class="terminal-output">{{if .HasResult}}{{$color := .Color}}{{range .Output}}{{range .Runs}}{{if .Colored}}<span style="color: rgb({{$color.Red}}, {{$color.Green}}, {{$color.Blue}})">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}
 {{end}}{{end}}</pre>
   </div>
@@ -143,6 +144,7 @@
 {{end}}
 {{end}}
 {{define "color_controls"}}
+{{/* C5 uses the exact field names that form validation accepts. */}}
 <fieldset class="option-group">
   <legend class="field-label">Color</legend>
   <div class="option-list">
@@ -166,4 +168,7 @@
 {{define "width_field"}}
 <input type="hidden" name="width" value="{{.Form.Width}}">
 {{end}}
-{{define "theme_control"}}{{end}}
+{{define "theme_control"}}
+{{/* C7 is outside the form so theme changes never submit generation values. */}}
+<button type="button" class="button button-secondary theme-toggle" data-theme-toggle aria-pressed="false">Dark theme</button>
+{{end}}

@@ -151,7 +151,7 @@ func TestStaticAssetRoutesServeOnlyKnownFiles(t *testing.T) {
 			path:       "/static/style.css",
 			wantStatus: http.StatusOK,
 			wantType:   "text/css; charset=utf-8",
-			wantBody:   ":root",
+			wantBody:   `html[data-theme="dark"]`,
 		},
 		{
 			name:       "app js",
@@ -159,7 +159,7 @@ func TestStaticAssetRoutesServeOnlyKnownFiles(t *testing.T) {
 			path:       "/static/app.js",
 			wantStatus: http.StatusOK,
 			wantType:   "text/javascript; charset=utf-8",
-			wantBody:   "measureColumns",
+			wantBody:   "data-theme-toggle",
 		},
 		{
 			name:       "static directory not exposed",

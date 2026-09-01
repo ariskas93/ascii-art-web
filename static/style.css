@@ -8,6 +8,17 @@
   --field-bg: #EEEDE7;
 }
 
+/* C7 swaps variables instead of component styles, keeping layout unchanged. */
+html[data-theme="dark"] {
+  --page-bg: #2E2820;
+  --card: #3B322A;
+  --accent: #E8E4DA;
+  --text: #F6EFE2;
+  --text-muted: #E8E4DA;
+  --border: #7A7062;
+  --field-bg: #2E2820;
+}
+
 *,
 *::before,
 *::after {

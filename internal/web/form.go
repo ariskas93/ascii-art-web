@@ -154,6 +154,8 @@ func validateForm(state FormState) (GenerationInput, error) {
 		if !isWebHexColor(state.Color) {
 			return GenerationInput{}, badFormRequest("Select a valid color in #RRGGBB format.")
 		}
+		// C2 turns the validated hex string into bounded RGB integers, so the
+		// template can build fixed CSS without trusting raw request text.
 		convertedColor, err := selectedColorFromHex(state.Color)
 		if err != nil {
 			return GenerationInput{}, badFormRequest("Select a valid color in #RRGGBB format.")
