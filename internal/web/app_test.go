@@ -111,7 +111,7 @@ func TestRoutesPhaseZeroContract(t *testing.T) {
 		{name: "wrong home method", method: http.MethodPost, path: "/", wantStatus: http.StatusMethodNotAllowed, wantAllowed: http.MethodGet},
 		{name: "wrong generate method", method: http.MethodGet, path: "/ascii-art", wantStatus: http.StatusMethodNotAllowed, wantAllowed: http.MethodPost},
 		{name: "wrong download method", method: http.MethodGet, path: "/ascii-art/download", wantStatus: http.StatusMethodNotAllowed, wantAllowed: http.MethodPost},
-		{name: "generate placeholder", method: http.MethodPost, path: "/ascii-art", wantStatus: http.StatusNotImplemented},
+		{name: "generate without a body is rejected", method: http.MethodPost, path: "/ascii-art", wantStatus: http.StatusUnsupportedMediaType},
 		{name: "download validates media type", method: http.MethodPost, path: "/ascii-art/download", wantStatus: http.StatusUnsupportedMediaType},
 	}
 
@@ -232,7 +232,7 @@ func TestRequestLoggingMiddlewareRecordsSafeMetadata(t *testing.T) {
 		"msg=\"http request\"",
 		"method=POST",
 		"path=/ascii-art",
-		"status=501",
+		"status=400",
 		"duration=",
 	} {
 		if !strings.Contains(output, fragment) {
