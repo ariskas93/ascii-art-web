@@ -84,6 +84,27 @@ func parsePostForm(w http.ResponseWriter, r *http.Request) (url.Values, error) {
 	return r.PostForm, nil
 }
 
+// parseGenerationForm composes the request and field-validation stages used by
+// both POST endpoints. State is returned even on field errors so handlers can
+// redisplay every unambiguous submitted value.
+func parseGenerationForm(w http.ResponseWriter, r *http.Request) (FormState, GenerationInput, error) {
+	values, err := parsePostForm(w, r)
+	if err != nil {
+		return defaultFormState(), GenerationInput{}, err
+	}
+
+	state, err := decodeForm(values)
+	if err != nil {
+		return state, GenerationInput{}, err
+	}
+
+	input, err := validateForm(state)
+	if err != nil {
+		return state, GenerationInput{}, err
+	}
+	return state, input, nil
+}
+
 // decodeForm checks the submitted key set and field cardinality before copying
 // raw values into FormState. The returned state is still untrusted and must be
 // passed to validateForm before generation.

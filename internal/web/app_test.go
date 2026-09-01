@@ -112,7 +112,7 @@ func TestRoutesPhaseZeroContract(t *testing.T) {
 		{name: "wrong generate method", method: http.MethodGet, path: "/ascii-art", wantStatus: http.StatusMethodNotAllowed, wantAllowed: http.MethodPost},
 		{name: "wrong download method", method: http.MethodGet, path: "/ascii-art/download", wantStatus: http.StatusMethodNotAllowed, wantAllowed: http.MethodPost},
 		{name: "generate placeholder", method: http.MethodPost, path: "/ascii-art", wantStatus: http.StatusNotImplemented},
-		{name: "download placeholder", method: http.MethodPost, path: "/ascii-art/download", wantStatus: http.StatusNotImplemented},
+		{name: "download validates media type", method: http.MethodPost, path: "/ascii-art/download", wantStatus: http.StatusUnsupportedMediaType},
 	}
 
 	for _, test := range tests {
