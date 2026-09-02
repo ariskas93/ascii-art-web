@@ -73,7 +73,7 @@ func TestHomeContainsAlignmentAndClearControls(t *testing.T) {
 		`name="align" value="center"`,
 		`name="align" value="right"`,
 		`name="align" value="justify"`,
-		`class="button button-secondary" href="/">Clear</a>`,
+		`class="button button-ghost" href="/">Clear</a>`,
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Errorf("default page does not contain %q", fragment)
@@ -96,7 +96,7 @@ func TestHomeContainsColorSubstringAndWidthControls(t *testing.T) {
 	for _, fragment := range []string{
 		`type="checkbox" name="use_color"`,
 		`id="color" type="color" name="color" value="#ff0000"`,
-		`id="substring" type="text" name="substring"`,
+		`id="substring" class="sub-input" type="text" name="substring"`,
 		`maxlength="4096"`,
 		`type="hidden" name="width" value="80"`,
 	} {
@@ -123,7 +123,7 @@ func TestHomeContainsThemeToggle(t *testing.T) {
 		`id="theme-toggle-label"`,
 		`Dark theme`,
 		`type="button"`,
-		`class="button button-secondary theme-toggle"`,
+		`class="theme-toggle"`,
 		`data-theme-toggle`,
 		`aria-labelledby="theme-toggle-label"`,
 		`aria-pressed="false"`,
@@ -228,7 +228,7 @@ func TestSuccessfulPageContainsSeparateDownloadSnapshot(t *testing.T) {
 	}
 	body := renderPageForTest(t, data)
 
-	generationStart := strings.Index(body, `class="generation-form"`)
+	generationStart := strings.Index(body, `class="generation-form`)
 	downloadStart := strings.Index(body, `action="/ascii-art/download"`)
 	if generationStart < 0 || downloadStart < 0 {
 		t.Fatal("page does not contain both expected forms")
