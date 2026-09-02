@@ -169,6 +169,21 @@
 <input type="hidden" name="width" value="{{.Form.Width}}">
 {{end}}
 {{define "theme_control"}}
-{{/* C7 is outside the form so theme changes never submit generation values. */}}
-<button type="button" class="button button-secondary theme-toggle" data-theme-toggle aria-pressed="false">Dark theme</button>
+{{/* Theme is client-only state, so this control stays outside the generation form. */}}
+<div class="theme-control">
+  <span id="theme-toggle-label" class="theme-control-label">Dark theme</span>
+
+  <button
+    type="button"
+    class="button button-secondary theme-toggle"
+    data-theme-toggle
+    aria-labelledby="theme-toggle-label"
+    aria-pressed="false">
+    <span
+      class="theme-toggle-status"
+      data-theme-toggle-status
+      aria-hidden="true">OFF</span>
+    <span class="theme-toggle-thumb" aria-hidden="true"></span>
+  </button>
+</div>
 {{end}}

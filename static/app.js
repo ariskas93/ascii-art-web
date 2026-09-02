@@ -30,21 +30,32 @@ function storeTheme(theme) {
     }
 }
 
+// Keep the CSS theme, accessible state, and visible status synchronized.
 function applyTheme(theme, themeToggle) {
+    const themeStatus = themeToggle.querySelector(
+        "[data-theme-toggle-status]"
+    );
+
     if (theme === "dark") {
         document.documentElement.dataset.theme = "dark";
         themeToggle.setAttribute("aria-pressed", "true");
-        themeToggle.textContent = "Light theme";
+
+        if (themeStatus) {
+            themeStatus.textContent = "ON";
+        }
     } else {
         delete document.documentElement.dataset.theme;
         themeToggle.setAttribute("aria-pressed", "false");
-        themeToggle.textContent = "Dark theme";
+
+        if (themeStatus) {
+            themeStatus.textContent = "OFF";
+        }
     }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    // Resolve the few elements C owns once. Missing elements simply leave the
-    // server-side 80-column fallback in place.
+    // Width measurement and theme setup are independent; missing markup for
+    // one feature must not disable the other.
     const form = document.querySelector(".generation-form");
     const widthInput = document.querySelector('input[name="width"]');
     const terminal = document.querySelector(".terminal-output");
@@ -64,6 +75,8 @@ document.addEventListener("DOMContentLoaded", function () {
         let currentTheme = readStoredTheme();
         applyTheme(currentTheme, themeToggle);
 
+        // sessionStorage is tab-scoped; BroadcastChannel shares the active
+        // preference only with other tabs that are currently open.
         let themeChannel = null;
         if ("BroadcastChannel" in window) {
             themeChannel = new BroadcastChannel(themeChannelName);
@@ -93,6 +106,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
 
+            // With no open peer to answer, this tab keeps its local theme.
             themeChannel.postMessage({
                 type: "theme-request",
             });

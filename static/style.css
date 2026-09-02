@@ -8,7 +8,7 @@
   --field-bg: #EEEDE7;
 }
 
-/* C7 swaps variables instead of component styles, keeping layout unchanged. */
+/* Swapping palette variables keeps component styles identical across themes. */
 html[data-theme="dark"] {
   --page-bg: #2E2820;
   --card: #3B322A;
@@ -230,7 +230,81 @@ textarea {
   margin-top: 1rem;
 }
 
-/* Package C: color, width measurement, assets, and optional theme. */
+/* Theme control */
+
+.theme-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.theme-control-label {
+  color: var(--text);
+}
+
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 4.5rem;
+  height: 2rem;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--field-bg);
+  color: var(--text);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+/* The accessible pressed state is also the switch's visual state hook. */
+.theme-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--card);
+}
+
+.theme-toggle-status {
+  position: absolute;
+  top: 50%;
+  right: 0.55rem;
+  line-height: 1;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.theme-toggle[aria-pressed="true"] .theme-toggle-status {
+  right: auto;
+  left: 0.55rem;
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  transform: translateY(-50%);
+  transition: transform 160ms ease;
+  pointer-events: none;
+}
+
+.theme-toggle[aria-pressed="true"] .theme-toggle-thumb {
+  transform: translate(2.5rem, -50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle,
+  .theme-toggle-thumb {
+    transition: none;
+  }
+}
 
 @media (max-width: 40rem) {
   .site-frame {
