@@ -1,371 +1,367 @@
-# ASCII-ART
+# ascii-art-web
 
-ASCII-ART is a Go command-line program that renders text as multi-line ASCII art using predefined banner files.
+Render text as ASCII art in the browser. A Go HTTP server wraps an existing
+ASCII-art engine in a web interface: choose a banner, an alignment, and an
+optional colour, and the rendered art appears on the same page — ready to read
+or download.
 
-The current implementation supports:
+Built with the Go standard library only. No third-party modules, no build step.
 
-- argument mode
-- interactive mode
-- three banner styles: `standard`, `shadow`, and `thinkertoy`
-- foreground color using preset names, full hexadecimal color codes, RGB, or HSL
-- escaped newline sequences written as `\n`
-- output files with `--output=<file>`
-- left, center, right, and justify alignment
-- printable ASCII characters supported by the banner files
+---
 
-Alignment is implemented for terminal and file output:
+## Description
 
-```bash
-go run . --align=left "Hello"
-go run . --align=center "Hello" shadow
-go run . --align=right "Hello" standard
-go run . --align=justify "Hello world" thinkertoy
-```
+The command-line version of this project rendered ASCII art in a terminal.
+ascii-art-web exposes the same capabilities through a browser: the flags become
+form controls, the terminal becomes an output panel, and the output file becomes
+a download.
 
-Alignment design and task ownership are documented in:
+What you can do:
 
-```text
-docs/prd.md
-docs/exercise.md
-docs/workFlow.md
-docs/tasks/
-```
+| | |
+| --- | --- |
+| **Banners** | `standard`, `shadow`, `thinkertoy` |
+| **Alignments** | `left`, `center`, `right`, `justify` |
+| **Colour** | any `#RRGGBB`, applied to the whole text or to every occurrence of a substring |
+| **Multiline input** | real newlines from the textarea, plus the literal `\n` escape |
+| **Download** | the displayed result as `ascii-art.txt` |
+| **Theme** | light or dark, remembered for the browser tab |
 
-## Requirements
+The web layer does not reimplement any of the rendering. It reuses the original
+`banner`, `renderer`, and `output` packages unchanged, and adds only what HTTP
+requires: routing, request validation, and safe presentation.
 
-- Go 1.22.2 or newer
-- The provided banner files in the `banners/` directory
+---
 
-The project uses only Go standard library packages.
+## Authors
 
-## How To Run
+| Name | Handle | Package |
+| --- | --- | --- |
+| Aris Kasapidis | `akasapid` | A — core pipeline |
+| Spiros | `skourou` | B — form, validation, download |
+| Kostis | `ksfakiana` | C — colour, presentation, infrastructure |
 
-### Interactive Mode
 
-Run the program without extra arguments:
+The work was split **vertically**: instead of one person per layer, each of us
+owned a slice of the product end-to-end, from the Go handler down to the HTML
+and CSS. `docs/workFlow.md` records the split and `docs/tasks/` the individual
+task cards.
+
+---
+
+## Usage: how to run
+
+### Requirements
+
+- **Go 1.22.2** or newer
+- The bundled `banners/`, `templates/`, and `static/` directories
+
+### Start the server
+
+Run from the **repository root**:
 
 ```bash
 go run .
 ```
 
-The program will:
+```text
+http://localhost:8080
+```
 
-1. Ask for text.
-2. Ask you to choose a banner.
-3. Ask for an optional color.
-4. If a color is provided, ask for an optional substring to color.
-5. Ask whether to write output to a file.
-6. Print or write the ASCII-art output.
-7. Return to the text prompt.
-8. Continue until you type `/exit`.
+The server resolves `templates/index.html`, `banners/*.txt`, and `static/*`
+relative to the current working directory. Starting it from anywhere else fails
+immediately at startup with a clear message rather than serving a broken page.
 
-Banner choices in interactive mode:
+Stop it with `Ctrl+C`. Shutdown is graceful: in-flight requests get up to five
+seconds to finish before the process exits.
+
+### Using the page
+
+1. Type the text to render. Press Enter for a new line; a literal `\n` typed as
+   two characters works too.
+2. Pick a banner and an alignment.
+3. Optionally tick **Use color**, choose a colour, and enter a substring to
+   colour only the matching parts. An empty substring colours everything.
+4. Press **Generate**. The art appears below and your form values are kept.
+5. Press **Download** to save the result as `ascii-art.txt`.
+6. Press **Clear** to start over.
+
+### Routes
 
 ```text
-1 -> standard
-2 -> shadow
-3 -> thinkertoy
+GET   /                       main page, and the target of Clear
+POST  /ascii-art              generate and display
+POST  /ascii-art/download     download the displayed result
+GET   /static/style.css       stylesheet
+GET   /static/app.js          column measurement and theme toggle
 ```
 
-### Argument Mode
+### Form fields
 
-Run the program with text:
+Exactly seven keys are accepted. Anything else — an unknown key, or the same key
+twice — is rejected.
+
+| Field | Type | Rule |
+| --- | --- | --- |
+| `text` | textarea | required, up to 4096 characters (whitespace-only is valid) |
+| `banner` | radio | `standard` \| `shadow` \| `thinkertoy` |
+| `use_color` | checkbox | `on` when present |
+| `color` | colour input | `#RRGGBB`, validated only when colouring is on |
+| `substring` | text | optional, up to 4096 characters |
+| `align` | radio | `left` \| `center` \| `right` \| `justify` |
+| `width` | hidden | integer 20–300; falls back to 80 |
+
+### Status codes
+
+| Code | When |
+| --- | --- |
+| `200` | success |
+| `400` | empty text, unknown banner or alignment, invalid colour, bad width, unsupported character, malformed encoding, duplicate or unexpected field |
+| `404` | unknown route |
+| `405` | wrong method on a known route (with an `Allow` header) |
+| `413` | request body over 64 KiB |
+| `415` | content type other than `application/x-www-form-urlencoded` |
+| `500` | template, presenter, or unexpected internal failure |
+
+Error pages keep the values you submitted, so nothing has to be retyped.
+
+### Tests
 
 ```bash
-go run . "Hello"
+go test ./...        # full suite
+go test -race ./...  # concurrency
+go vet ./...         # static checks
+gofmt -l .           # formatting (silence means clean)
 ```
 
-This uses the standard banner by default.
+---
 
-Run with a selected banner:
+## Implementation details: algorithm
 
-```bash
-go run . "Hello" shadow
-go run . "Hello" thinkertoy
-go run . "Hello" standard.txt
-```
+### One pipeline, two endings
 
-Accepted banner arguments:
-
-- `standard`
-- `standard.txt`
-- `shadow`
-- `shadow.txt`
-- `thinkertoy`
-- `thinkertoy.txt`
-
-If only one positional argument is provided, it is treated as text even if it equals a banner name.
-
-```bash
-go run . "shadow"
-```
-
-renders the word `shadow`.
-
-Argument mode renders once and exits.
-
-## Order-Flexible Options
-
-Supported options use `--flag=value` form:
+The page and the download run the **same** code. Only the last step differs:
+one renders styled HTML, the other writes plain text. A single definition of
+correct output serves both, so what you download is always what you saw.
 
 ```text
---color=<color>
---output=<file>
+HTTP request
+  |
+  |- parse & validate ----------- internal/web/form.go
+  |     untrusted strings -> bounded, checked values
+  |
+  |- generate ------------------- internal/web/generate.go
+  |     banner -> normalize -> build -> align
+  |
+  |- present -------------------- internal/web/presenter.go
+  |     ANSI -> styled runs (HTML) + plain text (download)
+  |
+  `- respond -------------------- HTML page  |  text attachment
 ```
 
-Options can appear before, between, or after positional arguments:
+### 1. Validation
 
-```bash
-go run . --output=out.txt "Hello"
-go run . "Hello" --output=out.txt
-go run . "Hello" shadow --color=cyan
-go run . "hello world" shadow --output=out.txt --color=cyan world
+Two boundaries are crossed before a single value is trusted.
+
+**Request level.** The content type must be `application/x-www-form-urlencoded`.
+The body is wrapped in a 64 KiB limit **before** `ParseForm` reads it, so a
+malicious client can never make the parser allocate without bound. Values are
+read from `PostForm` rather than the merged `Form`, which means a query-string
+parameter cannot smuggle in a value or conflict with a submitted one.
+
+**Field level.** Raw values are copied into a `FormState` that stays untrusted —
+its only job is to be echoed back onto an error page unchanged. Validation then
+produces a `GenerationInput` containing nothing but bounded, checked values.
+Only that struct reaches generation.
+
+The types enforce the boundary rather than relying on discipline:
+
+```go
+FormState        // raw, untrusted — for redisplay
+GenerationInput  // validated, bounded — for generation
+GeneratedASCII   // aligned ANSI text + the width it was aligned at
+StyledLine       // safe runs — for the template
 ```
 
-Separated option values are invalid:
+Text is deliberately **not** trimmed. HTML's `required` treats spaces as
+content, and the original engine accepts whitespace-only input; silently
+trimming would change established behaviour to make validation tidier.
 
-```bash
-go run . --color red "Hello"
-go run . --output out.txt "Hello"
-```
+### 2. Banner lookup
 
-## Color
+All three banner files are read and validated **once at startup** into a
+read-only registry. Each file is 95 blocks of 9 lines — one block per printable
+ASCII character, 32 to 126, of which 8 lines are art. A malformed file stops the
+server rather than producing broken output at request time.
 
-Color works in both argument mode and interactive mode.
+A request selects a banner by **identifier**, never by path. No browser value is
+ever joined into a filename, which removes path traversal as a category of bug
+rather than as a case to be caught.
 
-Color the whole rendered string:
+### 3. Normalization
 
-```bash
-go run . --color=red "Hello"
-go run . --color=#ff0000 "Hello"
-go run . --color=rgb,255,0,0 "Hello"
-go run . --color=hsl,0,100%,50% "Hello"
-```
+`renderer.NormalizeInput` splits the text into logical lines, treating four
+separators as equivalent: `LF`, `CRLF`, a lone `CR`, and the literal `\n`
+escape.
 
-Color every matching substring:
-
-```bash
-go run . --color=RGB,255,0,0 kit "a king kitten have kit"
-```
-
-Use a custom banner and color together:
-
-```bash
-go run . "hello world" shadow --color=cyan world
-```
-
-Supported preset names:
-
-- `black`
-- `red`
-- `green`
-- `yellow`
-- `blue`
-- `magenta`
-- `cyan`
-- `white`
-- `orange`
-
-Supported color value formats:
-
-- preset color name: `red`
-- hexadecimal: `#RRGGBB`, such as `#ff0000`
-- RGB: `rgb,<red>,<green>,<blue>`, such as `rgb,255,0,0`
-- HSL: `hsl,<hue>,<saturation>%,<lightness>%`, such as `hsl,0,100%,50%`
-
-RGB and HSL prefixes are case-insensitive.
-
-Invalid color values print:
-
-- invalid color name: `Invalid color name`
-- invalid hexadecimal color code: `Invalid hexadecimal color code`
-- invalid RGB color code: `Invalid RGB color code`
-- invalid HSL color code: `Invalid HSL color code`
-
-## Output Files
-
-Write rendered ASCII art to a file:
-
-```bash
-go run . --output=banner.txt "Hello"
-go run . "Hello" shadow --output=banner.txt
-go run . --output=banner.txt --color=red "Hello"
-```
-
-When `--output=<file>` is used, the program writes to the file instead of printing the ASCII art to the terminal.
-
-ANSI color codes are preserved in file output.
-
-Aligned file output uses the width of the terminal in which the command is
-currently running. Width is measured when the file is created, and the
-resulting padding is written as fixed spaces. Opening the file later in a
-different-sized editor or terminal does not realign it.
-
-Width selection follows this order:
+Order matters:
 
 ```text
-current terminal width
--> valid COLUMNS value
--> 80-column fallback
+"\r\n" -> "\n"     first  — a Windows line ending is one separator
+"\r"   -> "\n"     second — a lone CR is also one
+"\\n"  -> "\n"     the CLI-era escape joins the same alphabet
+split on "\n"
 ```
 
-## Alignment
+Collapsing `CRLF` first is what keeps one Windows line ending from becoming two
+blank-separated lines. After this step, exactly one kind of line break exists,
+and every later stage can stop thinking about the question.
 
-Syntax:
+Spaces are never trimmed, collapsed, or reordered — leading, trailing, and
+repeated spaces all survive into the rendered art.
 
-```bash
-go run . --align=left "Hello"
-go run . --align=center "Hello"
-go run . --align=right "Hello"
-go run . --align=justify "Hello world"
-```
+### 4. Rendering
 
-Values:
+Each character maps to eight banner rows. Instead of returning flat rows, the
+renderer returns **word and space segments**:
 
 ```text
-left
-center
-right
-justify
+"hi there" -> [word "hi"] [space " "] [word "there"]
 ```
 
-The renderer preserves word and space-run segments so the output package can
-implement justify without stretching spaces inside ASCII-art letters.
+This is what makes justify possible. Once rows are flattened into strings, a
+space between words is indistinguishable from a space inside a glyph — and
+expanding the wrong one shreds the letters. Keeping the structure lets alignment
+expand only the real gaps.
 
-Task split:
+When colouring is on, the substring matcher marks which character positions to
+colour. Matching is case-sensitive, evaluated per line, and **includes
+overlapping matches**: searching for `aa` in `aaa` colours all three characters,
+because both matches are honoured rather than the first one consuming the input.
+Those glyph rows are then wrapped in ANSI colour codes.
 
-- Programmer 1: CLI alignment option
-- Programmer 2: structured renderer
-- Programmer 3: output alignment and main integration
+### 5. Alignment
 
-Task files:
+| Mode | Behaviour |
+| --- | --- |
+| `left` | rows unchanged |
+| `center` | pad each row by half the remaining width |
+| `right` | pad each row by the full remaining width |
+| `justify` | distribute the remaining columns across the gaps between words |
+
+Justify gives any remainder to the **leftmost** gaps, matching how text
+justification reads left to right. Only a space segment with a word on both
+sides counts as a gap; leading and trailing spaces are never stretched.
+
+All padding is computed from **visible** width. The width function walks the
+string and skips ANSI escape sequences entirely, so a coloured row and an
+uncoloured row of the same art pad identically. Without this, turning on colour
+would silently shift the layout.
+
+### 6. Width
+
+Alignment needs a column count, and only the browser knows how wide the output
+area actually is. Immediately before submit, a hidden probe rendered in the
+terminal font converts the panel's pixel width into columns. The value is
+clamped to 20–300; if JavaScript is unavailable or the measurement fails, the
+server falls back to 80.
+
+The measurement happens **once**, at submit. Resizing the window afterwards
+sends no request and does not re-align an existing result: the output is a
+snapshot of the width it was generated at, and it scrolls sideways rather than
+reflowing. Re-flowing would silently change art the user had already read.
+
+### 7. Presentation
+
+The renderer speaks ANSI; browsers do not. The presenter scans the aligned
+output byte by byte and produces both outputs in a single pass — styled runs for
+HTML and an ANSI-free string for the download — which is what guarantees the two
+can never disagree.
+
+ANSI is treated as renderer-owned control data. Recognised foreground sequences
+toggle a colour flag and are consumed:
 
 ```text
-docs/tasks/task01_cli_alignment.md
-docs/tasks/task02_structured_renderer.md
-docs/tasks/task03_output_alignment_integration.md
+ESC[30m ... ESC[37m    basic foreground
+ESC[38;5;208m          256-colour orange
+ESC[38;2;R;G;Bm        truecolor
+ESC[0m                 reset
 ```
 
-## Newlines
+Anything incomplete or unrecognised is an **internal failure**, not something to
+pass through or guess at. No escape byte ever reaches the HTML or the downloaded
+file.
 
-Use escaped `\n` sequences inside the input string:
+Colour reaches the page as three integers. A `#RRGGBB` value is validated,
+converted to `0–255` components, and rendered inside a fixed inline style:
 
-```bash
-go run . "Hello\nThere" standard
+```html
+<span style="color: rgb(191, 215, 234)">...</span>
 ```
 
-This renders `Hello` and `There` as separate ASCII-art blocks.
+The rendered text stays an ordinary escaped template string. No user value is
+ever marked as trusted HTML or CSS, so the only thing a request can influence is
+three bounded numbers — injection has nowhere to land.
 
-## Project Structure
+Output is written into a `<pre>` with `white-space: pre` inside a horizontally
+scrolling container, preserving every space and line break exactly as generated.
+
+### 8. Server lifecycle
 
 ```text
-ascii-art/
-|-- main.go
-|-- banners/
-|   |-- standard.txt
-|   |-- shadow.txt
-|   `-- thinkertoy.txt
+address              :8080
+ReadHeaderTimeout    5s
+ReadTimeout          15s
+WriteTimeout         30s
+IdleTimeout          60s
+shutdown deadline    5s
+```
+
+Templates and banners load once at startup, so no request touches the filesystem
+for them. Every page renders into a buffer first: a template failure becomes a
+clean `500` instead of a half-written page with a `200` already sent.
+
+Structured logs go to **standard error** — method, route, status, duration, and
+the selected banner. Submitted text, substrings, form bodies, generated output,
+and headers are never logged. The application manages no log file of its own;
+persistence belongs to whatever runs it.
+
+---
+
+## Project layout
+
+```text
+ascii-art-web/
+|-- main.go                  startup, timeouts, graceful shutdown
+|-- banners/                 standard.txt, shadow.txt, thinkertoy.txt
+|-- templates/
+|   `-- index.html           page shell and its blocks
+|-- static/
+|   |-- style.css
+|   `-- app.js               column measurement, theme toggle
 |-- internal/
-|   |-- banner/
-|   |   |-- loader.go
-|   |   `-- loader_test.go
-|   |-- cli/
-|   |   |-- args.go
-|   |   |-- interactive.go
-|   |   |-- mode_picker.go
-|   |   |-- cli_test.go
-|   |   `-- interactive_test.go
-|   |-- output/
-|   |   |-- alignment.go
-|   |   |-- alignment_test.go
-|   |   |-- print.go
-|   |   |-- print_test.go
-|   |   |-- terminal_width_linux.go
-|   |   |-- terminal_width_linux_test.go
-|   |   |-- terminal_width_other.go
-|   |   |-- write.go
-|   |   |-- write_test.go
-|   |   |-- write_file.go
-|   |   `-- write_file_test.go
-|   `-- renderer/
-|       |-- build.go
-|       |-- color.go
-|       |-- normalize.go
-|       |-- substring.go
-|       |-- build_test.go
-|       |-- color_test.go
-|       |-- substring_test.go
-|       `-- normalize_test.go
-|-- docs/
-|   |-- audit_test.md
-|   |-- exercise.md
-|   |-- golden_tests.md
-|   |-- prd.md
-|   |-- workFlow.md
-|   `-- tasks/
-|       |-- task01_cli_alignment.md
-|       |-- task02_structured_renderer.md
-|       `-- task03_output_alignment_integration.md
-|-- go.mod
-`-- README.md
+|   |-- banner/              banner files -> glyph maps
+|   |-- renderer/            normalization, colour, substrings, glyph rows
+|   |-- output/              visible width, alignment, writing
+|   `-- web/                 routes, form, generation, presentation, handlers
+`-- docs/                    PRD, workflow, task cards
 ```
 
-## Architecture
+`banner`, `renderer`, and `output` are carried over from the command-line
+version **unchanged**. The web layer wraps them; it never duplicates them.
 
-Current pipeline:
+`templates/index.html` is split into named blocks — one owner per block — so
+three people could edit the same page without stepping on each other.
 
-```text
-CLI input
--> banner loading
--> input normalization
--> structured ASCII rendering
--> aligned terminal/file output
-```
-
-Package responsibilities:
-
-- `internal/cli`: chooses interactive or argument mode and validates user input
-- `internal/banner`: loads banner files into `map[rune][]string`
-- `internal/renderer`: normalizes input, validates color values, finds colored positions, and builds ASCII-art
-- `internal/output`: detects width, aligns rendered rows, and writes terminal or file output
-- `main.go`: connects the packages
-
-## Testing
-
-Run all tests:
-
-```bash
-go test ./...
-```
-
-Current tests cover:
-
-- banner loading and invalid banner formats
-- CRLF banner line endings
-- CLI argument mode
-- CLI interactive mode
-- order-flexible color and output options
-- escaped newline normalization
-- ASCII row building
-- color name, hexadecimal, RGB, and HSL validation
-- substring position matching for color rendering
-- output printing and file writing
-- left, center, right, and justify alignment
-- ANSI-aware visible-width calculations
-- terminal-width fallbacks and Linux non-terminal detection
-
-Additional edge cases are documented in:
-
-```text
-docs/golden_tests.md
-internal/cli/test_cases.md
-```
+---
 
 ## Limitations
 
-- Custom banner file paths are not accepted from user input.
-- Numeric banner choices are only used in interactive mode.
-- Unicode characters outside the printable ASCII banner range are not supported.
-- Live terminal-width detection is implemented for Linux and WSL. Other
-  platforms use `COLUMNS`, then the 80-column fallback.
-- Resizing and scaling are not implemented.
+- Only printable ASCII characters present in the banner files can be rendered;
+  anything else is a `400` with a clear message.
+- One colour and one substring per request. A substring containing a newline
+  matches nothing.
+- The result is a fixed snapshot: resizing the window does not re-align it until
+  the next Generate.
+- Text and substring are capped at 4,096 characters, the request body at 64 KiB.
+- The theme is remembered per browser tab, not across tabs or sessions.
