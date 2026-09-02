@@ -119,11 +119,18 @@ func TestHomeContainsThemeToggle(t *testing.T) {
 	body := getHome(t).Body.String()
 
 	for _, fragment := range []string{
+		`class="theme-control"`,
+		`id="theme-toggle-label"`,
+		`Dark theme`,
 		`type="button"`,
 		`class="button button-secondary theme-toggle"`,
 		`data-theme-toggle`,
+		`aria-labelledby="theme-toggle-label"`,
 		`aria-pressed="false"`,
-		`Dark theme`,
+		`class="theme-toggle-status"`,
+		`data-theme-toggle-status`,
+		`aria-hidden="true">OFF</span>`,
+		`class="theme-toggle-thumb"`,
 	} {
 		if !strings.Contains(body, fragment) {
 			t.Errorf("default page does not contain %q", fragment)
