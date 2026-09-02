@@ -146,6 +146,12 @@ textarea {
   cursor: pointer;
 }
 
+.option input[type="text"] {
+  border: 1px solid var(--border);
+  background: var(--field-bg);
+  color: var(--text);
+}
+
 .button {
   padding: 0.7rem 1.75rem;
   border: 1px solid var(--border);
