@@ -286,39 +286,43 @@ textarea {
 
 /* ---------- options ---------- */
 
-/* ---------- options ---------- */
-
+/* Options are styled like the action buttons: an unselected pill reads as a
+   quiet Clear, a selected one as a filled Generate. */
 .option-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
   align-items: flex-start;
+  gap: 0.45rem;
 }
 
 .option {
   position: relative;
   display: inline-flex;
   align-items: center;
-  padding: 0.35rem 0.85rem;
-  border: 1px solid var(--hair);
+  padding: 0.6rem 1.4rem;
+  border: 1px solid var(--line);
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
   color: var(--muted);
   font-size: 0.82rem;
   cursor: pointer;
   user-select: none;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   transition:
-    background 0.16s var(--ease),
+    background 0.18s var(--ease),
     border-color 0.16s var(--ease),
-    color 0.16s var(--ease);
+    color 0.15s var(--ease);
 }
 
 .option:hover {
-  border-color: var(--muted);
-  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.45);
+  background: linear-gradient(158deg, rgba(172, 190, 176, 0.6), rgba(148, 168, 153, 0.42));
+  color: #0F1310;
 }
 
-/* The real control stays in the DOM for keyboard and form semantics; only
-   its default appearance is replaced by the pill. */
+/* The real control stays in the DOM for keyboard and form semantics; only its
+   default appearance is replaced by the pill. */
 .option input {
   position: absolute;
   width: 0;
@@ -326,22 +330,34 @@ textarea {
   opacity: 0;
 }
 
-/* The tick span is kept in the markup for the other styles but is not used
-   by the pill treatment. */
+/* Kept in the markup for other option treatments; unused by the pill style. */
 .tick {
   display: none;
 }
 
+html[data-theme="dark"] .option {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+html[data-theme="dark"] .option:hover {
+  background: linear-gradient(158deg, rgba(172, 190, 176, 0.7), rgba(148, 168, 153, 0.5));
+  color: #0F1310;
+}
+
 .option:has(input:checked) {
-  border-color: transparent;
-  background: var(--text);
-  color: var(--glass-solid);
+  border-color: rgba(255, 255, 255, 0.5);
+  background: linear-gradient(158deg, rgba(172, 190, 176, 0.95), rgba(148, 168, 153, 0.75));
+  color: #0F1310;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 8px 18px -10px rgba(90, 104, 92, 0.6);
 }
 
 .option:has(input:focus-visible) {
   outline: 1.5px solid var(--focus);
   outline-offset: 2px;
 }
+
 
 /* ---------- colour row ---------- */
 
@@ -491,7 +507,7 @@ html[data-theme="dark"] .button-ghost:hover {
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 24px;
-  background: linear-gradient(158deg, rgba(92, 87, 70, 0.9), rgba(80, 76, 61, 0.84));
+  background: linear-gradient(158deg, rgba(76, 72, 58, 0.92), rgba(66, 63, 50, 0.86));
   overflow: hidden;
   -webkit-backdrop-filter: blur(26px) saturate(150%);
   backdrop-filter: blur(26px) saturate(150%);
@@ -535,7 +551,7 @@ html[data-theme="dark"] .button-ghost:hover {
   margin: 0;
   min-height: 9rem;
   padding: 2rem 1.75rem;
-  color: var(--screen-ink);
+  color: #FBF6EC;
   font-family: inherit;
   font-size: 0.72rem;
   line-height: 1.3;
