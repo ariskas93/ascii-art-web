@@ -286,31 +286,39 @@ textarea {
 
 /* ---------- options ---------- */
 
+/* ---------- options ---------- */
+
 .option-list {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0.4rem;
+  align-items: flex-start;
 }
 
 .option {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.4rem 0;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   cursor: pointer;
   user-select: none;
-  transition: color 0.15s var(--ease);
+  transition:
+    background 0.16s var(--ease),
+    border-color 0.16s var(--ease),
+    color 0.16s var(--ease);
 }
 
 .option:hover {
+  border-color: var(--muted);
   color: var(--text);
 }
 
 /* The real control stays in the DOM for keyboard and form semantics; only
-   its default appearance is replaced by the tick. */
+   its default appearance is replaced by the pill. */
 .option input {
   position: absolute;
   width: 0;
@@ -318,28 +326,19 @@ textarea {
   opacity: 0;
 }
 
+/* The tick span is kept in the markup for the other styles but is not used
+   by the pill treatment. */
 .tick {
-  width: 0.9rem;
-  color: var(--text);
-  font-size: 0.7rem;
-  opacity: 0;
-  transform: scale(0.6);
-  transition:
-    opacity 0.18s var(--ease),
-    transform 0.18s var(--ease);
+  display: none;
 }
 
 .option:has(input:checked) {
-  color: var(--text);
-}
-
-.option:has(input:checked) .tick {
-  opacity: 1;
-  transform: scale(1);
+  border-color: transparent;
+  background: var(--text);
+  color: var(--glass-solid);
 }
 
 .option:has(input:focus-visible) {
-  border-radius: 4px;
   outline: 1.5px solid var(--focus);
   outline-offset: 2px;
 }
@@ -492,7 +491,7 @@ html[data-theme="dark"] .button-ghost:hover {
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 24px;
-  background: linear-gradient(158deg, rgba(48, 46, 36, 0.92), rgba(40, 38, 30, 0.86));
+  background: linear-gradient(158deg, rgba(92, 87, 70, 0.9), rgba(80, 76, 61, 0.84));
   overflow: hidden;
   -webkit-backdrop-filter: blur(26px) saturate(150%);
   backdrop-filter: blur(26px) saturate(150%);
