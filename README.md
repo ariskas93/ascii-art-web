@@ -94,6 +94,7 @@ POST  /ascii-art              generate and display
 POST  /ascii-art/download     download the displayed result
 GET   /static/style.css       stylesheet
 GET   /static/app.js          column measurement and theme toggle
+*     all other paths         custom 404 page
 ```
 
 ### Form fields
@@ -335,7 +336,8 @@ ascii-art-web/
 |-- main.go                  startup, timeouts, graceful shutdown
 |-- banners/                 standard.txt, shadow.txt, thinkertoy.txt
 |-- templates/
-|   `-- index.html           page shell and its blocks
+|   |-- index.html           page shell and its blocks
+|   `-- 404.html             minimal not-found page
 |-- static/
 |   |-- style.css
 |   `-- app.js               column measurement, theme toggle

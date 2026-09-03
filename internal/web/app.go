@@ -30,6 +30,7 @@ func NewApp(pageTemplate *template.Template, banners BannerRegistry, logger *slo
 		"color_controls",
 		"width_field",
 		"theme_control",
+		"not_found",
 	}
 	for _, name := range templateNames {
 		if pageTemplate.Lookup(name) == nil {

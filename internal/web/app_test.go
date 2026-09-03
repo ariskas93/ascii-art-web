@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -126,6 +127,45 @@ func TestRoutesPhaseZeroContract(t *testing.T) {
 			}
 			if test.wantAllowed != "" && !headerContainsToken(response.Header().Get("Allow"), test.wantAllowed) {
 				t.Errorf("Allow = %q, want it to contain %q", response.Header().Get("Allow"), test.wantAllowed)
+			}
+		})
+	}
+}
+
+func TestNotFoundReturnsMinimalHTMLPage(t *testing.T) {
+	app := newTestApp(t, parseProductionTemplate(t))
+	handler := app.Routes()
+
+	for _, path := range []string{"/unknown", "/templates/404.html", "/static/missing.js"} {
+		t.Run(path, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, path, nil)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404", response.Code)
+			}
+			if got := response.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+				t.Errorf("Content-Type = %q, want text/html; charset=utf-8", got)
+			}
+			wantLength := strconv.Itoa(response.Body.Len())
+			if got := response.Header().Get("Content-Length"); got != wantLength {
+				t.Errorf("Content-Length = %q, want %q", got, wantLength)
+			}
+
+			body := response.Body.String()
+			for _, fragment := range []string{
+				"<!doctype html>",
+				"Page not found",
+				`href="/"`,
+				`href="/static/style.css"`,
+			} {
+				if !strings.Contains(body, fragment) {
+					t.Errorf("response body does not contain %q", fragment)
+				}
+			}
+			if strings.Contains(body, path) {
+				t.Errorf("response body exposes requested path %q", path)
 			}
 		})
 	}
@@ -311,7 +351,7 @@ func TestTemplateFailureReturnsCleanInternalServerError(t *testing.T) {
 
 func parseProductionTemplate(t *testing.T) *template.Template {
 	t.Helper()
-	pageTemplate, err := template.ParseFiles("../../templates/index.html")
+	pageTemplate, err := template.ParseFiles("../../templates/index.html", "../../templates/404.html")
 	if err != nil {
 		t.Fatalf("parse production template: %v", err)
 	}
@@ -366,4 +406,5 @@ const failingPageTemplate = `
 {{define "color_controls"}}{{end}}
 {{define "width_field"}}{{end}}
 {{define "theme_control"}}{{end}}
+{{define "not_found"}}{{end}}
 `

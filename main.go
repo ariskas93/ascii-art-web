@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	serverAddress   = ":8080"
-	templatePath    = "templates/index.html"
-	shutdownTimeout = 5 * time.Second
+	serverAddress        = ":8080"
+	pageTemplatePath     = "templates/index.html"
+	notFoundTemplatePath = "templates/404.html"
+	shutdownTimeout      = 5 * time.Second
 )
 
 func main() {
@@ -32,7 +33,7 @@ func main() {
 }
 
 func run(logger *slog.Logger) error {
-	pageTemplate, err := template.ParseFiles(templatePath)
+	pageTemplate, err := template.ParseFiles(pageTemplatePath, notFoundTemplatePath)
 	if err != nil {
 		return fmt.Errorf("parse page template: %w", err)
 	}

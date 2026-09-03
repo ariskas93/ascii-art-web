@@ -5,12 +5,31 @@ import "net/http"
 // Routes returns the application's complete HTTP handler.
 func (app *App) Routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", app.handleHome)
-	mux.HandleFunc("POST /ascii-art", app.handleGenerate)
-	mux.HandleFunc("POST /ascii-art/download", app.handleDownload)
-	mux.HandleFunc("GET /static/style.css", app.handleStyleCSS)
-	mux.HandleFunc("GET /static/app.js", app.handleAppJS)
+	registerRoute(mux, http.MethodGet, "/{$}", app.handleHome)
+	registerRoute(mux, http.MethodPost, "/ascii-art", app.handleGenerate)
+	registerRoute(mux, http.MethodPost, "/ascii-art/download", app.handleDownload)
+	registerRoute(mux, http.MethodGet, "/static/style.css", app.handleStyleCSS)
+	registerRoute(mux, http.MethodGet, "/static/app.js", app.handleAppJS)
+	mux.HandleFunc("/", app.handleNotFound)
 	return app.logRequests(mux)
+}
+
+// registerRoute keeps method errors distinct from the final not-found route.
+// GET routes also accept HEAD, matching net/http's normal method semantics.
+func registerRoute(mux *http.ServeMux, method string, pattern string, handler http.HandlerFunc) {
+	mux.HandleFunc(method+" "+pattern, handler)
+	mux.HandleFunc(pattern, func(w http.ResponseWriter, _ *http.Request) {
+		allowed := method
+		if method == http.MethodGet {
+			allowed += ", " + http.MethodHead
+		}
+		w.Header().Set("Allow", allowed)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+	})
+}
+
+func (app *App) handleNotFound(w http.ResponseWriter, _ *http.Request) {
+	app.renderHTML(w, http.StatusNotFound, "not_found", nil)
 }
 
 func (app *App) handleStyleCSS(w http.ResponseWriter, r *http.Request) {
