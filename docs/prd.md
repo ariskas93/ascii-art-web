@@ -2,9 +2,9 @@
 
 ## Document Status
 
-This is a living PRD. It records the product and architectural decisions agreed upon before implementation begins.
+This is a living PRD. It records the product and architectural decisions implemented by the project.
 
-Current status: **design in progress; implementation has not started**.
+Current status: **implemented and maintained as the product contract evolves**.
 
 The previous version of this document described the ASCII Art alignment project. Alignment is now implemented in the current source, so this PRD supersedes that older planning document and defines the next project: ASCII Art Web.
 
@@ -176,7 +176,8 @@ The web application uses the following initial organization:
 .
 ├── main.go
 ├── templates/
-│   └── index.html
+│   ├── index.html
+│   └── 404.html
 ├── static/
 │   ├── style.css
 │   └── app.js
@@ -481,18 +482,19 @@ The Download button submits the current generation values to:
 POST /ascii-art/download
 ```
 
-The server uses the same validation and generation workflow as browser display, then prompts browser download behavior with an attachment response.
+The server uses the same validation and generation workflow as browser display, then prompts browser download behavior with an attachment response. Immediately before submission, JavaScript measures the usable browser viewport in monospace columns and replaces only the download form's `width` value. The already-rendered browser result is not changed.
 
 The initial download format is portable plain text:
 
 ```text
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: attachment; filename="ascii-art.txt"
+Content-Length: exact attachment body size in bytes
 ```
 
 The downloaded file preserves ASCII characters, spaces, logical rows, and server-generated alignment. ANSI color control sequences are removed, so the file remains readable in ordinary text editors. Browser color remains a presentation feature of the HTML result.
 
-The page remembers the width used to generate the displayed result. Download uses that recorded width rather than measuring again, so resizing the browser after generation does not change the downloaded alignment.
+The page remembers the width used to generate the displayed result as a no-JavaScript and measurement-failure fallback. On Download, the client recalculates width from the current browser viewport and active monospace character width. The server validates the resulting 20–300 column value and regenerates the snapshot with the selected alignment. Resizing after generation therefore leaves the browser result fixed but can intentionally change the downloaded alignment.
 
 Download represents the successfully displayed result, not ungenerated edits in the main form. After successful generation, the page contains a separate, non-nested download form with an escaped snapshot of:
 
@@ -503,10 +505,10 @@ use_color, when enabled
 color
 substring
 align
-rendered width
+download width, initialized from the rendered width as a fallback
 ```
 
-The editable generation form and download snapshot are independent. Editing visible fields does not change the downloadable result until Generate succeeds again.
+The editable generation form and download snapshot are independent. Editing visible fields does not change the downloadable content until Generate succeeds again. Browser resizing may change only the alignment width calculated when Download is pressed.
 
 Multiline snapshot text may be held in a hidden textarea so real line endings are preserved safely. Other snapshot fields may use hidden inputs. All values remain normal `html/template` data and are escaped.
 
@@ -723,7 +725,9 @@ CSS is responsible for visual color and browser layout. The existing Go output l
 
 The terminal-like output container is present before generation so its usable content width can be measured. On Generate, JavaScript measures the container and the active monospace character width, calculates a text-column count, and submits that count once.
 
-The server treats `width` as untrusted input, validates it, and applies alignment through the existing width-explicit output logic. Missing measurement falls back to 80 columns. Explicit widths must be integers from 20 through 300 columns; malformed or out-of-range explicit values are invalid requests.
+Browser display and download have deliberately separate width measurements. On Download, JavaScript measures `document.documentElement.clientWidth`, divides it by the same monospace character width, clamps the result to 20–300 columns, and updates only the download snapshot's hidden `width` field. If viewport measurement is unavailable, that field retains the server-rendered browser width as its fallback.
+
+The server treats `width` as untrusted input, validates it, and applies alignment through the existing width-explicit output logic. Missing generation width falls back to 80 columns; failed download measurement retains the generated browser width already present in the download form. Explicit widths must be integers from 20 through 300 columns; malformed or out-of-range explicit values are invalid requests.
 
 Generated output is a fixed snapshot at the submitted width. Browser resizing does not send another HTTP request and does not dynamically realign existing output. If the available area later becomes narrower than the result, CSS displays horizontal overflow:
 
@@ -736,7 +740,7 @@ Generated output is a fixed snapshot at the submitted width. Browser resizing do
 }
 ```
 
-The user can press Generate again to render for the newly measured size. Dynamic re-alignment during window resizing is outside the first implementation.
+The user can press Generate again to render the browser result for the newly measured output-panel size. Dynamic browser re-alignment during window resizing is outside the implementation; only a later Download measures the current viewport again for the text attachment.
 
 ---
 
@@ -775,6 +779,8 @@ Clear is the only normal action that intentionally returns all fields and output
 
 Known routes that reject a method include the appropriate `Allow` header.
 
+Unknown routes render the dedicated minimal `not_found` template with `404 Not Found`, an HTML media type, and a link back to `/`. The response does not echo the requested path. Known routes with unsupported methods remain `405 Method Not Allowed`; the not-found fallback must not hide that distinction.
+
 Missing templates and bundled banners are initialization failures, not user-facing missing resources. Users select stable public identifiers; they do not request internal files directly. The server does not begin listening when a required startup resource is unavailable or invalid.
 
 ### 13.2 Error response behavior
@@ -788,7 +794,7 @@ Invalid generation input returns the main HTML page with:
 
 Internal errors are logged with enough detail for developers, while client responses omit filesystem paths, stack traces, raw internal errors, and template details.
 
-Templates should be executed into a temporary buffer before committing the response status and body. This allows a template-execution error to become a clean `500` instead of leaving a partial response with an already-written status.
+Templates should be executed into a temporary buffer before committing the response status and body. This allows a template-execution error to become a clean `500` instead of leaving a partial response with an already-written status. Successful buffered HTML responses set `Content-Length` from the final byte count.
 
 A failed download must not include `Content-Disposition: attachment`. Validation failures return the normal HTML form with an error; unexpected failures return a safe `500` response.
 
@@ -860,14 +866,15 @@ Required layout:
 
 ```text
 templates/
-└── index.html
+├── index.html
+└── 404.html
 
 static/
 ├── style.css
 └── app.js
 ```
 
-`index.html` is parsed once during startup with `html/template`. A missing file or template syntax error prevents the server from starting. The parsed template is passed to handlers and is not reparsed for each request.
+`index.html` and `404.html` are parsed together once during startup with `html/template`. The application validates both the main-page definitions and the `not_found` definition before listening. A missing file or template syntax error prevents the server from starting. The parsed template set is passed to handlers and is not reparsed for each request.
 
 CSS and JavaScript are served from their fixed files under public URLs:
 
@@ -918,7 +925,8 @@ The following criteria cover decisions made so far. More criteria will be added 
 - [ ] Clear returns an empty/default form and removes the result.
 - [ ] Download submits the same generation values through the shared workflow.
 - [ ] Generate measures the terminal area once and submits its width in text columns.
-- [ ] Missing JavaScript measurement falls back to 80 columns.
+- [ ] Download measures the current browser viewport and submits a separate width without altering the browser result.
+- [ ] Missing generation measurement falls back to 80 columns, while failed download measurement retains the rendered browser width.
 - [ ] Resizing after generation does not send a request or alter the generated spacing.
 - [ ] Narrow terminal containers provide horizontal scrolling.
 - [ ] Native browser validation blocks ordinary empty-text submissions.
@@ -952,13 +960,14 @@ The following criteria cover decisions made so far. More criteria will be added 
 ### Download
 
 - [ ] Download returns `ascii-art.txt` as a plain-text attachment.
-- [ ] Download preserves the displayed result's recorded alignment width.
+- [ ] Download declares its exact byte size with `Content-Length`.
+- [ ] Download uses viewport-derived alignment width and falls back to the displayed result's recorded width when measurement is unavailable.
 - [ ] Download preserves ASCII spaces, rows, and alignment.
 - [ ] Download contains no ANSI color control sequences.
 - [ ] Browser input cannot select or influence a server-side output path.
 - [ ] Download appears only after successful generation.
 - [ ] Download uses a separate form containing the successful generation snapshot.
-- [ ] Editing the main form does not change the downloadable result.
+- [ ] Editing the main form does not change the downloadable content.
 - [ ] Snapshot values are escaped, revalidated, and regenerated server-side.
 - [ ] Generated ASCII output is not trusted or round-tripped through hidden fields.
 - [ ] Download requires no server-side session state.
@@ -973,7 +982,7 @@ The following criteria cover decisions made so far. More criteria will be added 
 - [ ] Request-specific state is never shared between concurrent requests.
 - [ ] Raw browser strings are not passed directly into generation.
 - [ ] Validated widths and RGB components use bounded numeric values.
-- [ ] Browser and plain-text presentations derive from the same aligned generated result.
+- [ ] Browser and plain-text output use the same generation and presentation pipeline while allowing their validated alignment widths to differ.
 - [ ] Templates receive presentation data rather than renderer or HTTP internals.
 - [ ] CLI code remains during initial web construction rather than being deleted in the first feature change.
 - [ ] Obsolete root CLI tests are replaced when `main.go` becomes a server.
@@ -986,7 +995,7 @@ The following criteria cover decisions made so far. More criteria will be added 
 - [ ] Invalid form values return `400` with preserved state and no result.
 - [ ] Oversized request bodies return `413`.
 - [ ] Unsupported request media types return `415`.
-- [ ] Unknown routes return `404`.
+- [ ] Unknown routes return the minimal HTML 404 page without echoing the requested path.
 - [ ] Wrong methods return `405` with an `Allow` header.
 - [ ] Missing required startup resources prevent the server from listening.
 - [ ] Unexpected internal request failures return `500`.
@@ -1002,7 +1011,7 @@ The following criteria cover decisions made so far. More criteria will be added 
 - [ ] Intentional `http.ErrServerClosed` is not reported as a failure.
 - [ ] Structured logs are written to standard error rather than an application-managed file.
 - [ ] Logs contain safe lifecycle and request metadata but not submitted or generated content.
-- [ ] `templates/index.html` is read from disk and parsed once during startup.
+- [ ] `templates/index.html` and `templates/404.html` are read from disk and parsed together once during startup.
 - [ ] Missing or invalid templates prevent startup.
 - [ ] All three bundled banners are loaded and validated before listening.
 - [ ] Preloaded banner maps are treated as immutable shared data.
@@ -1073,7 +1082,7 @@ The generation workflow is tested independently from HTTP for:
 - whole-input and substring coloring;
 - repeated and overlapping substring matches;
 - unsupported-character errors;
-- derivation of browser and download presentation from the same aligned result.
+- derivation of browser and download content through the same workflow at independently supplied alignment widths.
 
 ### 16.4 ANSI presenter tests
 
@@ -1106,7 +1115,8 @@ They verify:
 - valid `POST /ascii-art` returns `200`, preserved form state, rendered output, rendered width, and a download snapshot;
 - invalid generation returns `400`, preserved safe values, an error, and no result;
 - Clear returns the default page with no result or error;
-- unknown routes return `404`;
+- unknown routes return the minimal HTML 404 page with a home link and do not expose the requested path;
+- internal template paths such as `/templates/404.html` remain inaccessible;
 - wrong methods return `405` with the correct `Allow` header.
 
 Tests assert focused status, header, state, and security behavior rather than comparing one brittle full-page HTML string.
@@ -1139,6 +1149,7 @@ Successful download tests verify:
 status              = 200
 Content-Type        = text/plain; charset=utf-8
 Content-Disposition = attachment; filename="ascii-art.txt"
+Content-Length      = exact response body size in bytes
 ```
 
 They also verify:
@@ -1146,7 +1157,8 @@ They also verify:
 - aligned ASCII spaces and rows are preserved;
 - ANSI escape bytes are absent;
 - all banners and multiline input work;
-- the recorded displayed width is used;
+- the submitted download width is used and remains independently validated;
+- client-side download measurement targets the current browser viewport and retains the recorded displayed width as fallback;
 - a submitted snapshot renders the displayed values rather than later editable-form values;
 - no server file is created;
 - clients cannot supply filenames or paths;
@@ -1198,6 +1210,7 @@ Manual browser verification covers behavior that Go tests do not execute directl
 - regeneration at a newly measured width;
 - Clear removing both form state and output;
 - Download prompting for `ascii-art.txt`;
+- viewport-based text-download alignment without changing the browser result;
 - readable downloaded text.
 
 The JavaScript measurement helper remains intentionally small rather than introducing a JavaScript testing framework for the first version.
@@ -1231,11 +1244,14 @@ Test completeness is judged by public behavior, validation branches, security bo
 | Download trust | Revalidate snapshot inputs and regenerate server-side |
 | Server session | Not required for generation or download state |
 | Initial download format | Portable `ascii-art.txt` without ANSI color sequences |
+| Download response headers | Plain-text `Content-Type`, attachment `Content-Disposition`, and exact byte `Content-Length` |
 | Future download format | Standalone colored HTML document, outside the first version |
 | Browser color | Inline spans created by the template using validated RGB integers |
 | HTML safety | Keep text escaped; do not inject raw user HTML or CSS |
 | Generation width | Measure terminal columns once immediately before Generate |
-| Width fallback | 80 columns when client measurement is unavailable |
+| Download width | Measure browser viewport columns immediately before Download |
+| Generation width fallback | 80 columns when output-panel measurement is unavailable |
+| Download width fallback | Retain the server-rendered browser width when viewport measurement is unavailable |
 | Width limits | Explicit client width must be 20–300 columns |
 | Window resize | Keep the generated snapshot and show horizontal overflow |
 | Client validation | Native HTML constraints provide immediate feedback |
@@ -1251,7 +1267,7 @@ Test completeness is judged by public behavior, validation branches, security bo
 | Form source | Read `PostForm`; do not merge query values |
 | Form cardinality | Reject duplicate single-value fields and unexpected keys |
 | Unsupported media type | `415 Unsupported Media Type` |
-| Unknown route | `404 Not Found` |
+| Unknown route | Minimal HTML `404 Not Found` page with a link to `/` |
 | Wrong method | `405 Method Not Allowed` with `Allow` |
 | Internal failure | Safe `500 Internal Server Error`; details logged server-side |
 | Server address | Fixed `:8080` for the first version |
@@ -1260,7 +1276,7 @@ Test completeness is judged by public behavior, validation branches, security bo
 | Logging API | Standard-library structured logger |
 | Logging destination | Standard error; runtime environment owns persistence |
 | Logging privacy | Do not log form values, input text, substrings, or output |
-| Template loading | Read from disk and parse once during startup |
+| Template loading | Read `index.html` and `404.html` from disk and parse them together once during startup |
 | Static assets | Serve fixed disk files under `/static/` |
 | Asset security | No request-derived filesystem paths or directory listing |
 | Working directory | Run from the repository root |

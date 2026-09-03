@@ -68,7 +68,8 @@ go run .
 http://localhost:8080
 ```
 
-The server resolves `templates/index.html`, `banners/*.txt`, and `static/*`
+The server resolves `templates/index.html`, `templates/404.html`,
+`banners/*.txt`, and `static/*`
 relative to the current working directory. Starting it from anywhere else fails
 immediately at startup with a clear message rather than serving a broken page.
 
@@ -83,7 +84,8 @@ seconds to finish before the process exits.
 3. Optionally tick **Use color**, choose a colour, and enter a substring to
    colour only the matching parts. An empty substring colours everything.
 4. Press **Generate**. The art appears below and your form values are kept.
-5. Press **Download** to save the result as `ascii-art.txt`.
+5. Press **Download** to save the result as `ascii-art.txt`. At download time,
+   alignment is recalculated against the current browser viewport width.
 6. Press **Clear** to start over.
 
 ### Routes
@@ -110,7 +112,7 @@ twice — is rejected.
 | `color` | colour input | `#RRGGBB`, validated only when colouring is on |
 | `substring` | text | optional, up to 4096 characters |
 | `align` | radio | `left` \| `center` \| `right` \| `justify` |
-| `width` | hidden | integer 20–300; falls back to 80 |
+| `width` | hidden | integer 20–300; generation defaults to 80 and download retains the rendered width if viewport measurement fails |
 
 ### Status codes
 
@@ -118,13 +120,14 @@ twice — is rejected.
 | --- | --- |
 | `200` | success |
 | `400` | empty text, unknown banner or alignment, invalid colour, bad width, unsupported character, malformed encoding, duplicate or unexpected field |
-| `404` | unknown route |
+| `404` | unknown route, rendered with the minimal not-found page |
 | `405` | wrong method on a known route (with an `Allow` header) |
 | `413` | request body over 64 KiB |
 | `415` | content type other than `application/x-www-form-urlencoded` |
 | `500` | template, presenter, or unexpected internal failure |
 
-Error pages keep the values you submitted, so nothing has to be retyped.
+Validation error pages keep the values you submitted, so nothing has to be
+retyped. Unknown routes use a separate minimal 404 page with a link home.
 
 ### Tests
 
@@ -141,9 +144,11 @@ gofmt -l .           # formatting (silence means clean)
 
 ### One pipeline, two endings
 
-The page and the download run the **same** code. Only the last step differs:
-one renders styled HTML, the other writes plain text. A single definition of
-correct output serves both, so what you download is always what you saw.
+The page and the download run the **same generation pipeline**. The browser
+aligns against the output panel; immediately before download, JavaScript
+replaces only the download form's width with the current viewport width in
+monospace columns. The server then regenerates the validated snapshot as plain
+text, so content stays consistent while the download can use a wider alignment.
 
 ```text
 HTTP request
@@ -151,8 +156,10 @@ HTTP request
   |- parse & validate ----------- internal/web/form.go
   |     untrusted strings -> bounded, checked values
   |
+  |- choose width --------------- output panel | download viewport
+  |
   |- generate ------------------- internal/web/generate.go
-  |     banner -> normalize -> build -> align
+  |     banner -> normalize -> build -> align at chosen width
   |
   |- present -------------------- internal/web/presenter.go
   |     ANSI -> styled runs (HTML) + plain text (download)
@@ -261,16 +268,18 @@ would silently shift the layout.
 
 ### 6. Width
 
-Alignment needs a column count, and only the browser knows how wide the output
-area actually is. Immediately before submit, a hidden probe rendered in the
-terminal font converts the panel's pixel width into columns. The value is
-clamped to 20–300; if JavaScript is unavailable or the measurement fails, the
-server falls back to 80.
+Alignment needs a column count, and the two browser actions measure different
+targets. Immediately before Generate, a hidden probe rendered in the terminal
+font converts the output panel's pixel width into columns. Immediately before
+Download, the same character measurement converts the current browser viewport
+into columns without changing the browser result. Both values are clamped to
+20–300. Generation falls back to 80; failed download measurement retains the
+server-rendered generation width.
 
-The measurement happens **once**, at submit. Resizing the window afterwards
-sends no request and does not re-align an existing result: the output is a
+Each measurement happens **once**, when its form is submitted. Resizing sends no
+request and does not re-align an existing browser result: the output is a
 snapshot of the width it was generated at, and it scrolls sideways rather than
-reflowing. Re-flowing would silently change art the user had already read.
+reflowing. A later Download intentionally observes the then-current viewport.
 
 ### 7. Presentation
 
@@ -320,7 +329,9 @@ shutdown deadline    5s
 
 Templates and banners load once at startup, so no request touches the filesystem
 for them. Every page renders into a buffer first: a template failure becomes a
-clean `500` instead of a half-written page with a `200` already sent.
+clean `500` instead of a half-written page with a `200` already sent. Buffered
+HTML and successful text downloads declare their exact byte size with
+`Content-Length`.
 
 Structured logs go to **standard error** — method, route, status, duration, and
 the selected banner. Submitted text, substrings, form bodies, generated output,
@@ -340,7 +351,7 @@ ascii-art-web/
 |   `-- 404.html             minimal not-found page
 |-- static/
 |   |-- style.css
-|   `-- app.js               column measurement, theme toggle
+|   `-- app.js               panel/viewport measurement, theme toggle
 |-- internal/
 |   |-- banner/              banner files -> glyph maps
 |   |-- renderer/            normalization, colour, substrings, glyph rows
@@ -363,7 +374,10 @@ three people could edit the same page without stepping on each other.
   anything else is a `400` with a clear message.
 - One colour and one substring per request. A substring containing a newline
   matches nothing.
-- The result is a fixed snapshot: resizing the window does not re-align it until
-  the next Generate.
+- The browser result is a fixed snapshot: resizing the window does not re-align
+  it until the next Generate.
+- Download alignment targets the browser viewport at the moment Download is
+  pressed. A text editor with a different font or window width may show a
+  different visual center because plain text has no dynamic layout metadata.
 - Text and substring are capped at 4,096 characters, the request body at 64 KiB.
 - The theme is remembered per browser tab, not across tabs or sessions.
