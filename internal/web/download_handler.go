@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"strconv"
 )
 
 const (
@@ -35,6 +36,7 @@ func (app *App) handleDownload(w http.ResponseWriter, r *http.Request) {
 	// attachment response.
 	w.Header().Set("Content-Type", downloadContentType)
 	w.Header().Set("Content-Disposition", downloadDisposition)
+	w.Header().Set("Content-Length", strconv.Itoa(len(plain)))
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte(plain)); err != nil {
 		app.logger.Error("write download response", "error", err)

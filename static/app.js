@@ -56,18 +56,36 @@ function applyTheme(theme, themeToggle) {
 document.addEventListener("DOMContentLoaded", function () {
     // Width measurement and theme setup are independent; missing markup for
     // one feature must not disable the other.
-    const form = document.querySelector(".generation-form");
-    const widthInput = document.querySelector('input[name="width"]');
+    const generationForm = document.querySelector(".generation-form");
+    const generationWidthInput = generationForm
+        ? generationForm.querySelector('input[name="width"]')
+        : null;
+    const downloadForm = document.querySelector(".download-form");
+    const downloadWidthInput = downloadForm
+        ? downloadForm.querySelector('input[name="width"]')
+        : null;
     const terminal = document.querySelector(".terminal-output");
     const themeToggle = document.querySelector("[data-theme-toggle]");
 
-    if (form && widthInput && terminal) {
-        if (!widthInput.value) {
-            widthInput.value = String(fallbackWidth);
+    if (generationForm && generationWidthInput && terminal) {
+        if (!generationWidthInput.value) {
+            generationWidthInput.value = String(fallbackWidth);
         }
 
-        form.addEventListener("submit", function () {
-            widthInput.value = String(measureColumns(terminal));
+        generationForm.addEventListener("submit", function () {
+            generationWidthInput.value = String(measureColumns(terminal));
+        });
+    }
+
+    if (downloadForm && downloadWidthInput && terminal) {
+        downloadForm.addEventListener("submit", function () {
+            const viewportColumns = measureViewportColumns(terminal);
+
+            // The server-rendered value reproduces the web output when the
+            // browser cannot provide a usable viewport measurement.
+            if (viewportColumns !== null) {
+                downloadWidthInput.value = String(viewportColumns);
+            }
         });
     }
 
@@ -143,6 +161,20 @@ function measureColumns(terminal) {
         return fallbackWidth;
     }
     const columns = Math.floor(containerWidth / charWidth);
+    return clampWidth(columns);
+}
+
+function measureViewportColumns(terminal) {
+    // Downloads target the usable browser viewport rather than the narrower
+    // output panel. Plain text represents centering with leading spaces, so
+    // the pixel width must first be converted into monospace columns.
+    const viewportWidth = document.documentElement.clientWidth;
+    const charWidth = measureCharacterWidth(terminal);
+
+    if (viewportWidth <= 0 || charWidth <= 0) {
+        return null;
+    }
+    const columns = Math.floor(viewportWidth / charWidth);
     return clampWidth(columns);
 }
 

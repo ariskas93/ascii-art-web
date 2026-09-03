@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -40,6 +41,10 @@ func TestDownloadReturnsRegeneratedPlainTextAttachment(t *testing.T) {
 			}
 			if got := response.Header().Get("Content-Disposition"); got != downloadDisposition {
 				t.Errorf("Content-Disposition = %q, want %q", got, downloadDisposition)
+			}
+			wantLength := strconv.Itoa(response.Body.Len())
+			if got := response.Header().Get("Content-Length"); got != wantLength {
+				t.Errorf("Content-Length = %q, want %q", got, wantLength)
 			}
 			if strings.Contains(response.Body.String(), "\033[") {
 				t.Error("download contains an ANSI escape sequence")
