@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	serverAddress        = ":8080"
+	defaultServerAddress = ":8080"
 	pageTemplatePath     = "templates/index.html"
 	notFoundTemplatePath = "templates/404.html"
 	shutdownTimeout      = 5 * time.Second
@@ -73,9 +73,19 @@ func loadBundledBanners() (webapp.BannerRegistry, error) {
 	return registry, nil
 }
 
+// serverAddress returns the listen address. Hosting platforms assign a port
+// through the PORT environment variable; when it is absent, the local default
+// applies.
+func serverAddress() string {
+	if port := os.Getenv("PORT"); port != "" {
+		return ":" + port
+	}
+	return defaultServerAddress
+}
+
 func newHTTPServer(handler http.Handler) *http.Server {
 	return &http.Server{
-		Addr:              serverAddress,
+		Addr:              serverAddress(),
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
