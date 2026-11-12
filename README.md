@@ -7,6 +7,65 @@ or download.
 
 Built with the Go standard library only. No third-party modules, no build step.
 
+![ascii-art-web home page](docs/screenshots/01-home.png)
+
+---
+
+## My contribution
+
+This was a three-person project with a vertical split (see [Authors](#authors)).
+I (Aris, `akasapid`) owned **Package A, the core pipeline**, and then
+**redesigned the page UI**.
+
+### Engineering (Package A)
+
+- **Input normalization:** extended `renderer.NormalizeInput` so LF, CRLF, a
+  lone CR and the CLI-era literal `\n` all split lines the same way.
+- **Shared generation workflow:** the single `Generate` path that both the page
+  and the download use, so the two can never disagree.
+- **`GET /` and `POST /ascii-art`:** the main page, Clear, and the generate
+  handler, with tests for the default page and clear behaviour.
+- **First UI:** textarea, banner radios, Generate button and the terminal-style
+  output box.
+- **Documentation:** the PRD, task cards and this README.
+
+### UI/UX redesign
+
+I replaced the first functional page with a "liquid glass" interface. The
+goal was a tool that feels calm and tactile, while the ASCII art stays the
+most readable thing on the screen.
+
+| Decision | Why |
+| --- | --- |
+| **Translucent glass panels** over slowly drifting colour fields | A blurred, translucent panel needs something behind it to refract, so the background is a soft gradient and not a flat colour. A `@supports` fallback gives solid panels where `backdrop-filter` is unavailable. |
+| **Small earthy palette** (champagne, khaki, muted teal) with **one cool signal colour** (pale sky) | Limiting the palette keeps the page quiet. The accent is reserved for the active state and the primary action. The first version used a blue accent, which I later swapped for a lighter sage tone. |
+| **Segmented pills** for banner and alignment, and the same pill shape for buttons | Each choice is visible at once with no dropdown. One shape for every control makes the form read as one system. |
+| **Dark output slab** in both themes | The result is the point of the page, so it keeps a dark, high-contrast surface in light mode too. |
+| **Monospace type everywhere** | It matches the product and makes the output panel feel like part of the page. |
+| **Theme as CSS variables** | Dark mode swaps variables and does not touch component styles, so the layout is identical in both themes. |
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/03-result-color-center.png" alt="Colour and centre alignment"></td>
+    <td><img src="docs/screenshots/05-dark-theme.png" alt="Dark theme"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/04-result-justify.png" alt="Justify alignment"></td>
+    <td><img src="docs/screenshots/07-error-validation.png" alt="Validation error keeping the user's input"></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshots/06-mobile.png" alt="Mobile layout" width="280">
+</p>
+
+### Teammates' work
+
+Spiros (`skourou`) built the form validation, the download endpoint and the
+status codes. Kostis (`ksfakiana`) built the presenter (ANSI to HTML),
+colouring, logging, static assets, the theme toggle and the width measurement
+script. The styling above sits on top of their work.
+
 ---
 
 ## Description
